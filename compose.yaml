@@ -1,0 +1,26 @@
+services:
+  bot:
+    build: .
+    image: pi-im-bot:local
+    container_name: pi-im-bot
+    init: true
+    restart: unless-stopped
+    ports:
+      - "19335:19335"
+    environment:
+      BOT_CONFIG_DIR: /app/config
+      BOT_DATA_DIR: /app/data
+    devices:
+      - /dev/fuse:/dev/fuse
+    cap_add:
+      - SYS_ADMIN
+    volumes:
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./plugins:/app/plugins
+      - type: bind
+        source: ./plugin-data
+        target: /app/plugin-data
+        bind:
+          propagation: rshared
+      - /var/run/docker.sock:/var/run/docker.sock:ro

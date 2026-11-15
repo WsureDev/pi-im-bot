@@ -1,0 +1,43 @@
+{
+  "name": "pi-im-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.4",
+  "scripts": {
+    "dev": "bun --watch src/main.ts",
+    "start": "bun src/main.ts",
+    "preview:plugins": "bun scripts/preview-plugin-center.ts",
+    "pack:plugin": "bun scripts/pack-plugin.ts",
+    "share:export": "bun scripts/export-source.ts",
+    "build": "bun scripts/build.ts",
+    "check": "tsc --noEmit",
+    "test": "bun test tests",
+    "format": "bunx --bun prettier --write src web scripts tests config/*.example.json",
+    "format:check": "bunx --bun prettier --check src web scripts tests config/*.example.json"
+  },
+  "dependencies": {
+    "@earendil-works/chord": "1.5.0",
+    "@earendil-works/pi-agent-core": "1.5.0",
+    "@earendil-works/pi-ai": "1.5.0",
+    "@earendil-works/pi-coding-agent": "1.5.0",
+    "@earendil-works/pi-durable": "1.5.0",
+    "@earendil-works/pi-mcp": "1.5.0",
+    "@earendil-works/pi-schema": "1.5.0",
+    "@hono/standard-validator": "0.4.1",
+    "croner": "11.0.0",
+    "dompurify": "^3.4.17",
+    "hono": "4.13.17",
+    "marked": "^18.2.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "bun": "1.4.4",
+    "prettier": "3.6.2",
+    "typescript": "7.0.2"
+  },
+  "trustedDependencies": [
+    "bun"
+  ]
+}

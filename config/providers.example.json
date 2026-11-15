@@ -1,0 +1,57 @@
+{
+  "defaultGroup": "main",
+  "providers": [
+    {
+      "id": "primary",
+      "enabled": false,
+      "protocol": "openai-responses",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKey": "",
+      "headers": {},
+      "body": { "store": false, "service_tier": "auto" },
+      "timeoutMs": 120000,
+      "models": [
+        {
+          "id": "your-primary-model",
+          "contextWindow": 128000,
+          "maxOutputTokens": 16384,
+          "reasoning": true,
+          "images": true,
+          "headers": {},
+          "body": { "reasoning": { "effort": "medium" } }
+        }
+      ]
+    },
+    {
+      "id": "backup",
+      "enabled": false,
+      "protocol": "openai-responses",
+      "baseUrl": "https://your-compatible-provider.example/v1",
+      "apiKey": "",
+      "headers": { "X-Client-Name": "pi-im-bot" },
+      "body": { "store": false },
+      "timeoutMs": 120000,
+      "models": [
+        {
+          "id": "your-backup-model",
+          "contextWindow": 128000,
+          "maxOutputTokens": 16384,
+          "reasoning": true,
+          "images": true,
+          "body": { "reasoning": { "effort": "low" } }
+        }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "id": "main",
+      "name": "主模型组",
+      "candidates": [
+        { "provider": "primary", "model": "your-primary-model" },
+        { "provider": "backup", "model": "your-backup-model" }
+      ],
+      "cooldownMs": 60000
+    }
+  ]
+}

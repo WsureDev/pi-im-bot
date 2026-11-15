@@ -1,0 +1,19 @@
+{
+  "server": { "host": "0.0.0.0", "port": 19335 },
+  "agent": {
+    "maxConcurrentRuns": 2,
+    "maxQueuedRuns": 50,
+    "maxModelCalls": 20,
+    "timeoutMs": 600000,
+    "systemPrompt": "你是通过即时通讯协助用户工作的智能助手。善用工具完成任务，保持简洁，准确区分工具事实与推测。",
+    "execution": { "backend": "disabled" }
+  },
+  "onebot": {
+    "enabled": true,
+    "path": "/onebot/v11/ws",
+    "accessToken": "",
+    "targets": [],
+    "commandPrefix": "!pi",
+    "allowPrivate": false
+  }
+}
