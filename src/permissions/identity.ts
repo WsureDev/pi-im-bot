@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { Address } from '../domain/message'
 
 export const TriggerIdentitySchema = z.object({
   origin: z.enum(['platform', 'local', 'mock', 'legacy']),
@@ -7,6 +8,8 @@ export const TriggerIdentitySchema = z.object({
   channel: z.string(),
   accountId: z.string(),
   role: z.enum(['owner', 'admin', 'member']).optional(),
+  chatKind: z.enum(['group', 'direct']).optional(),
+  chatId: z.string().optional(),
   messageIds: z.array(z.string()).default([])
 })
 export type TriggerIdentity = Readonly<z.infer<typeof TriggerIdentitySchema>>
@@ -17,6 +20,22 @@ export const AuthoritySchema = z.object({
   policyRevision: z.string()
 })
 export type Authority = z.infer<typeof AuthoritySchema>
+
+export function identityForRoom(identity: TriggerIdentity, address: Address): TriggerIdentity {
+  if (
+    (identity.chatId !== undefined && identity.chatId !== address.chatId) ||
+    (identity.chatKind !== undefined && identity.chatKind !== address.kind)
+  ) {
+    throw new Error('触发身份不属于当前聊天范围')
+  }
+  if (identity.origin === 'platform') {
+    if (identity.channel !== address.channel || identity.accountId !== address.accountId) {
+      throw new Error('触发身份的平台账号不匹配')
+    }
+    return identity
+  }
+  return Object.freeze({ ...identity, chatKind: address.kind, chatId: address.chatId })
+}
 
 // Editable Web/Mock display labels are never platform credentials.
 export function localIdentity(

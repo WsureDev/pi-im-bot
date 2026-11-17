@@ -86,6 +86,14 @@ async function stored(path: string) {
 }
 
 describe('Provider web configuration', () => {
+  test('private editor reads inline key at the expected revision without changing public metadata', async () => {
+    const { editor } = await setup()
+    const view = await editor.read()
+    expect((await editor.readApiKey('source', view.revision)).value).toBe('secret-key-123')
+    expect(JSON.stringify(await editor.read())).not.toContain('secret-key-123')
+    await expect(editor.readApiKey('source', 'stale')).rejects.toBeInstanceOf(ProviderEditError)
+    await expect(editor.readApiKey('missing', view.revision)).rejects.toBeInstanceOf(ProviderEditError)
+  })
   test('masked credentials survive editing and provider/model renames update references', async () => {
     const { editor, path, current } = await setup()
     const view = await editor.read()

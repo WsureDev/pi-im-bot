@@ -14,6 +14,10 @@ export function registerProviderRoutes(app: Hono, editor: ProviderEditor, change
   app.get('/api/providers/config', async (c) => {
     return c.json(await editor.read())
   })
+  app.post('/api/providers/:id/api-key', sValidator('json', RevisionSchema), async (c) => {
+    c.header('Cache-Control', 'no-store')
+    return c.json(await editor.readApiKey(c.req.param('id'), c.req.valid('json').revision))
+  })
   app.post('/api/providers', sValidator('json', SaveProviderSchema), async (c) => {
     const input = c.req.valid('json')
     const result = await editor.saveProvider(input.revision, input.provider)

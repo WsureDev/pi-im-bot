@@ -18,7 +18,7 @@ import { registerOneBotRoutes } from './onebot-routes'
 import { FrameworkEditor, SettingsEditError } from '../settings/editor'
 import { registerFrameworkRoutes } from './framework-routes'
 import { SettingsPatchSchema } from '../settings/schema'
-import { localIdentity } from '../permissions/identity'
+import { localIdentity, identityForRoom } from '../permissions/identity'
 import { captureAuthority } from '../permissions/authorize'
 import type { ResourceEditor } from '../resources/editor'
 import { registerResourceRoutes } from './resource-routes'
@@ -39,6 +39,8 @@ import { registerPluginInstallRoutes } from './plugin-install-routes'
 import { PluginConfigValidationError } from '../plugins/configuration/values'
 import type { PluginRuntimeEditor } from '../plugins/runtime/editor'
 import { registerPluginRuntimeRoutes } from './plugin-runtime-routes'
+import { controlApp } from '../control/routes'
+import { rejectPluginConsoleAccess } from './plugin-origin'
 
 export interface HttpServices {
   configuration(): Configuration
@@ -65,6 +67,7 @@ export function createHttpApp(services: HttpServices) {
     await next()
     c.header('Cache-Control', 'no-store')
   })
+  app.use('/api/*', rejectPluginConsoleAccess)
   app.use('/api/*', (c, next) => {
     let maxSize = 128 * 1024
     if (c.req.method === 'POST' && c.req.path === '/api/resources/workflows') {
@@ -274,7 +277,7 @@ export function createHttpApp(services: HttpServices) {
     const effective = coordinator.effective(room.id)
     const authority = captureAuthority(
       effective,
-      [localIdentity('web', 'operator')],
+      [identityForRoom(localIdentity('web', 'operator'), room.address)],
       undefined,
       services.configuration().resources.capabilityIds(effective.settings)
     )
@@ -305,7 +308,7 @@ export function createHttpApp(services: HttpServices) {
     const effective = coordinator.effective(schedule.roomId)
     schedule.authority = captureAuthority(
       effective,
-      [localIdentity('web', 'operator')],
+      [identityForRoom(localIdentity('web', 'operator'), coordinator.requireRoom(schedule.roomId).address)],
       undefined,
       services.configuration().resources.capabilityIds(effective.settings)
     )
@@ -318,6 +321,7 @@ export function createHttpApp(services: HttpServices) {
     await scheduler.remove(c.req.param('id'))
     return c.json({ ok: true })
   })
+  app.route('/api/control', controlApp(services))
   const webRoot = process.env.BOT_WEB_DIR ?? './dist'
   app.use('/*', serveStatic({ root: webRoot }))
   app.get('/', serveStatic({ path: join(webRoot, 'index.html') }))

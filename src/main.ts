@@ -32,6 +32,7 @@ import { revision } from './settings/resolve'
 import { configureArtifacts } from './artifacts/quota'
 import { PluginInstaller } from './plugins/install/service'
 import { PluginRuntimeEditor } from './plugins/runtime/editor'
+import { pluginOriginHeader } from './http/plugin-origin'
 
 interface UiSocketData {
   kind: 'ui'
@@ -45,12 +46,16 @@ interface OneBotSocketData {
 type SocketData = UiSocketData | OneBotSocketData
 
 const projectDir = resolve(import.meta.dir, '..')
+const webDir = resolve(process.env.BOT_WEB_DIR ?? join(projectDir, 'dist'))
+if (!(await Bun.file(join(webDir, 'index.html')).exists())) {
+  throw new Error('Dashboard assets are missing. Run bun run build before starting the Bot.')
+}
+process.env.BOT_WEB_DIR = webDir
 const dataDir = resolve(process.env.BOT_DATA_DIR ?? join(projectDir, 'data'))
 await mkdir(dataDir, { recursive: true })
 const owner = new RuntimeOwner(dataDir)
 let configuration = await loadConfiguration(projectDir)
 configureArtifacts(configuration.dataDir, configuration.bot.artifacts)
-await import('../scripts/build')
 process.env.PI_CODING_AGENT_DIR = join(configuration.dataDir, 'pi-agent')
 const store = new StateStore(configuration.dataDir)
 const events = new EventHub()
@@ -226,12 +231,24 @@ const app = createHttpApp({
   }
 })
 
+let research: Awaited<ReturnType<typeof import('../preview/server/routes').createResearchApp>> | undefined
+if (process.env.BOT_PREVIEW_RESEARCH === '1') {
+  const { createResearchApp } = await import('../preview/server/routes')
+  research = await createResearchApp(join(configuration.dataDir, 'research-state.json'))
+}
+
 const server = Bun.serve<SocketData>({
   hostname: configuration.bot.server.host,
   port: configuration.bot.server.port,
   idleTimeout: 120,
   fetch(request, server) {
+    if (request.headers.has(pluginOriginHeader)) {
+      return Response.json({ error: '插件管理请求必须使用有范围的 RPC' }, { status: 403 })
+    }
     const path = new URL(request.url).pathname
+    if (research && path.startsWith('/api/research/')) {
+      return research.app.fetch(request)
+    }
     if (path === '/api/events') {
       if (server.upgrade(request, { data: { kind: 'ui' } })) {
         return

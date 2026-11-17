@@ -22,6 +22,8 @@ export function createPluginTools(
     for (const entry of pluginOperations(invocation.config, invocation.input)) {
       if (
         !entry.operation.tool ||
+        (entry.bundle.manifest.resourceProvider &&
+          !entry.bundle.manifest.resourceProvider.tools.includes(entry.operation.id)) ||
         !invocation.input.context.authority.capabilities.includes(entry.capabilityId)
       ) {
         continue

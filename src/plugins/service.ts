@@ -18,6 +18,8 @@ import { PluginInvocationError } from './rpc/peer'
 import { gsviExecutionRevision } from '../services/gsvi/identity'
 import type { RenderPlan } from '../domain/rendering'
 import { serviceOperationBudget } from './operation-budget'
+import { revision as connectionRevision } from '../settings/resolve'
+import { identityRoles } from '../permissions/capability-policy'
 
 interface PluginCallScope {
   chain: readonly string[]
@@ -388,6 +390,15 @@ export class PluginService {
       })
     )
     const context = pluginInvocationView(invocation, entry, input, grants, timeoutMs, callId)
+    context.actors = context.actors.map((actor, index) => {
+      return {
+        ...actor,
+        roles: identityRoles(
+          invocation.input.context.authority.identities[index],
+          this.configuration().framework.defaults.permissions.botAdministrators ?? []
+        )
+      }
+    })
     context.limits = { backgroundStatelessConcurrency: Math.max(0, this.manager.config.maxWorkers - 1) }
     const controller = new AbortController()
     const controllers = this.active.get(invocation.room.id) ?? new Set<AbortController>()
@@ -402,6 +413,12 @@ export class PluginService {
       const current = this.authorize(invocation, entry)
       if (!current.grants.includes(grant)) {
         throw new Error('插件宿主服务授权已撤销')
+      }
+      if (
+        grant === 'resource.http' &&
+        connectionRevision(current.settings) !== connectionRevision(entry.instance.settings)
+      ) {
+        throw new Error('资源连接配置已变化，原调用不能切换连接继续执行')
       }
       if (grant.startsWith('service:')) {
         const alias = grant.slice(8)

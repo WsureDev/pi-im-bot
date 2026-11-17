@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { PatchPathSchema } from './hooks/path'
+import { ProviderMetadataSchema } from '../resource-providers/definition'
+import { ConfigDefinitionSchema } from './configuration/schema'
 
 export const PluginIdSchema = z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/u)
 export const PluginLocalIdSchema = z.string().regex(/^[a-z][a-z0-9_-]{0,47}$/u)
@@ -23,7 +25,7 @@ export const PluginJsonSchema = z
 export const PluginGrantSchema = z
   .string()
   .regex(
-    /^(?:system\.status|state\.(?:read|write)|authorization\.inspect|storage\.(?:read|write)|media\.read|history\.read|artifact\.(?:read|write)|delivery\.(?:send|recall)|service:[a-z][a-z0-9_-]{0,31}|connector:[a-z][a-z0-9_-]{0,31}|operation:[a-z][a-z0-9_-]{0,31}\/[a-z][a-z0-9_-]{0,47}|point:[a-z][a-z0-9_.-]{0,160}@\d+)$/u
+    /^(?:system\.status|resource\.http|state\.(?:read|write)|authorization\.inspect|storage\.(?:read|write)|media\.read|history\.read|artifact\.(?:read|write)|delivery\.(?:send|recall)|service:[a-z][a-z0-9_-]{0,31}|connector:[a-z][a-z0-9_-]{0,31}|operation:[a-z][a-z0-9_-]{0,31}\/[a-z][a-z0-9_-]{0,47}|point:[a-z][a-z0-9_.-]{0,160}@\d+)$/u
   )
 export const PluginOperationSchema = z.object({
   id: PluginLocalIdSchema,
@@ -31,6 +33,7 @@ export const PluginOperationSchema = z.object({
   description: z.string().max(4000),
   inputSchema: PluginJsonSchema,
   outputSchema: z.record(z.string(), z.json()).optional(),
+  inputUiSchema: ConfigDefinitionSchema.optional(),
   tool: z.boolean().default(true),
   execution: z.enum(['foreground', 'background']).default('foreground'),
   data: z.enum(['scope', 'none']).default('scope'),
@@ -146,6 +149,7 @@ export const PluginManifestSchema = z
     files: z.array(PluginPathSchema).min(1).max(2000),
     configSchema: PluginJsonSchema.optional(),
     configurationProjection: z.literal('gsvi@1').optional(),
+    resourceProvider: ProviderMetadataSchema.optional(),
     operations: z.array(PluginOperationSchema).max(100).default([]),
     commands: z.array(PluginCommandSchema).max(100).default([]),
     hooks: z.array(PluginHookSchema).max(100).default([]),
@@ -153,6 +157,23 @@ export const PluginManifestSchema = z
   })
   .strict()
   .superRefine((value, context) => {
+    if (
+      value.resourceProvider?.tools.some((id) => {
+        return !value.operations.some((operation) => {
+          return operation.id === id
+        })
+      })
+    ) {
+      context.addIssue({ code: 'custom', message: '资源 Tool 导出必须引用已声明操作' })
+    }
+    if (value.resourceProvider?.discover) {
+      const discover = value.operations.find((operation) => {
+        return operation.id === value.resourceProvider?.discover
+      })
+      if (!discover || discover.execution !== 'foreground') {
+        context.addIssue({ code: 'custom', message: '资源发现必须引用已声明的前台操作' })
+      }
+    }
     for (const operation of value.operations) {
       if (
         operation.serviceTimeout &&

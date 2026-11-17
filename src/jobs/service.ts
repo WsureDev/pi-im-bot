@@ -32,8 +32,16 @@ import type { Outbound } from '../domain/delivery'
 import { RenderAdmissionRejected, RenderRejectionSchema, type RenderRejection } from '../domain/rendering'
 import { serviceOperationBudget } from '../plugins/operation-budget'
 import type { PluginOperationEntry } from '../plugins/registry'
+import {
+  providedResource,
+  providedResourceRevision,
+  assertResourceToolExport
+} from '../resource-providers/context'
+import { pluginOperationId } from '../plugins/identity'
+import { assertToolEnabled } from '../permissions/capability-policy'
 
 interface AdmissionOptions {
+  entrySurface?: 'tool' | 'command'
   operationOwned?: boolean
   presentation?: { outboundId: string; parentJobId?: string; parentJobRevision?: number }
   schedule?: ScheduleOrigin
@@ -86,7 +94,7 @@ export class JobService {
     runtime.registry.install(defineExtension({ name: 'bot-jobs', tasks: [this.task] }))
   }
 
-  forInvocation(invocation: JobInvocation): JobToolServices {
+  forInvocation(invocation: JobInvocation, entrySurface: 'tool' | 'command' = 'tool'): JobToolServices {
     const roomId = invocation.room.id
     return {
       operation: (title, capability, args, callId) => {
@@ -96,11 +104,11 @@ export class JobService {
           { kind: 'tool', capability, arguments: args },
           callId,
           undefined,
-          { operationOwned: true }
+          { operationOwned: true, entrySurface }
         )
       },
       start: (title, spec, callId, messageIds) => {
-        return this.start(invocation, title, spec, callId, messageIds)
+        return this.start(invocation, title, spec, callId, messageIds, entrySurface)
       },
       list: () => {
         return this.repository.list(roomId)
@@ -153,9 +161,10 @@ export class JobService {
     title: string,
     spec: JobSpec,
     callId: string,
-    sourceMessageIds?: string[]
+    sourceMessageIds?: string[],
+    entrySurface: 'tool' | 'command' = 'command'
   ): Promise<JobSummary> {
-    return this.admit(invocation, title, spec, callId, sourceMessageIds)
+    return this.admit(invocation, title, spec, callId, sourceMessageIds, { entrySurface })
   }
 
   async present(outbound: Outbound) {
@@ -231,6 +240,39 @@ export class JobService {
     sourceMessageIds?: string[],
     options: AdmissionOptions = {}
   ): Promise<JobSummary> {
+    if (spec.kind === 'tool') {
+      const entrySurface = options.entrySurface ?? 'tool'
+      if (entrySurface === 'tool') {
+        assertResourceToolExport(invocation.config, spec.capability)
+        assertToolEnabled(invocation.input.context.effective.settings, spec.capability)
+        assertToolEnabled(this.coordinator.effective(invocation.room.id).settings, spec.capability)
+      }
+      let resourceRevision: string | undefined
+      if (spec.resourceId) {
+        const resource = providedResource(invocation.config, spec.resourceId)
+        if (
+          !resource.operationIds.some((id) => {
+            return pluginOperationId(resource.providerId, id) === spec.capability
+          })
+        ) {
+          throw new Error('资源不属于目标操作')
+        }
+        resourceRevision = providedResourceRevision(resource)
+      }
+      invocation = {
+        ...invocation,
+        input: {
+          ...invocation.input,
+          context: {
+            ...invocation.input.context,
+            entryCapability: spec.capability,
+            entrySurface,
+            resourceId: spec.resourceId,
+            resourceRevision
+          }
+        }
+      }
+    }
     if (spec.kind === 'agent' && !invocation.input.context.effective.settings.behavior.agentEnabled) {
       throw new Error('当前聊天范围已关闭 Agent')
     }

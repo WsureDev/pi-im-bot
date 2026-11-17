@@ -1,9 +1,9 @@
 import { z } from 'zod'
-import { PluginRuntimeSchema } from './config'
+import { PluginWorkerImageSchema } from './image-schema'
 
 export const PluginEnvironmentInputSchema = z
   .object({
-    image: PluginRuntimeSchema.unwrap().shape.image,
+    image: PluginWorkerImageSchema.default('oven/bun:1.4.4'),
     mountCommand: z
       .string()
       .min(1)

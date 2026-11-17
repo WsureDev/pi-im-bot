@@ -6,6 +6,7 @@ import { PluginOrderEditor } from '../plugins/configuration/order'
 import { SavePluginOrderSchema } from '../plugins/configuration/order-contracts'
 import { PluginPipelineEditor } from '../plugins/pipeline/editor'
 import { SavePipelineSchema } from '../plugins/pipeline/contracts'
+import { ReadConfigSecretsSchema } from '../plugins/configuration/secret-editor'
 
 export function registerPluginConfigRoutes(
   app: Hono,
@@ -14,6 +15,14 @@ export function registerPluginConfigRoutes(
 ) {
   const order = new PluginOrderEditor(editor)
   const pipeline = new PluginPipelineEditor(editor)
+  app.post(
+    '/api/plugins/:id/configuration/secrets',
+    sValidator('json', ReadConfigSecretsSchema),
+    async (c) => {
+      c.header('Cache-Control', 'no-store')
+      return c.json(await editor.readSecrets(c.req.param('id'), c.req.valid('json')))
+    }
+  )
   app.get('/api/plugins/pipeline', async (c) => {
     return c.json(await pipeline.read())
   })

@@ -22,6 +22,8 @@ import { reserveMediaSources } from '../media/dependencies'
 import type { ArtifactAccess } from '../artifacts/access'
 import { SendMessageInputSchema, logicalMessages } from '../domain/logical-message'
 import { sendLogicalSequence } from '../runtime/logical-send'
+import { ResourceHttpRequestSchema, resourceHttpRequest } from '../resource-providers/http'
+import { mergeConfig } from './configuration/values'
 
 export function pluginHostServices(
   invocation: PluginInvocation,
@@ -47,6 +49,35 @@ export function pluginHostServices(
   phase: PluginAction['phase'] = 'execute'
 ) {
   const host = new PluginHostServices()
+  const http = binding.bundle.manifest.resourceProvider?.http
+  if (http) {
+    host.register('resource.http', 'resource.http', ResourceHttpRequestSchema, async (input, context) => {
+      if (invocation.readOnly && input.method !== 'GET') {
+        throw new Error('只读调用仅允许资源 HTTP GET')
+      }
+      checkGrant('resource.http')
+      invocation.services.assertActive?.()
+      const settings = mergeConfig(
+        binding.instance.settings,
+        invocation.input.context.effective.settings.extensions.settings[binding.instance.id] ?? {},
+        binding.bundle.configuration
+      )
+      const selected = invocation.config.resources.config.provided.find((entry) => {
+        return entry.id === invocation.input.context.resourceId && entry.providerId === binding.instance.id
+      })
+      let configuration = settings
+      if (selected) {
+        configuration = mergeConfig(
+          settings,
+          selected.configuration,
+          binding.bundle.manifest.resourceProvider?.resourceSchema
+        )
+      }
+      const result = await resourceHttpRequest(http, configuration, input, context.signal)
+      checkGrant('resource.http')
+      return result
+    })
+  }
   const sources = invocation.services.mediaSources ?? new Set<string>()
   const usedCapabilities = new Set<string>()
   const usedGrants = new Set<string>()

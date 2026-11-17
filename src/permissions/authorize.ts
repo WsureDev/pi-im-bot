@@ -2,6 +2,7 @@ import type { BotTool } from '../capabilities/tool'
 import type { EffectiveSettings, PermissionPolicy, Settings } from '../settings/schema'
 import type { Authority, TriggerIdentity } from './identity'
 import { capabilityIds, isActionCapability } from './catalog'
+import { capabilityPolicyAllows } from './capability-policy'
 
 function subjectMatches(
   subject: PermissionPolicy['rules'][number]['subjects'][number],
@@ -28,6 +29,9 @@ function subjectMatches(
 
 export function isAllowed(settings: Settings, identity: TriggerIdentity, capability: string) {
   if (identity.origin === 'legacy') {
+    return false
+  }
+  if (!capabilityPolicyAllows(settings, identity, capability)) {
     return false
   }
   const selection = settings.resources.tools

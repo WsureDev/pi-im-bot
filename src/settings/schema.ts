@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { PluginOverridesSchema } from '../plugins/config'
+import { CapabilityAccessSchema, BotAdministratorSchema } from '../permissions/capability-policy'
 
 export const ResourceSelectionSchema = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('all') }),
@@ -24,6 +25,8 @@ export const PermissionSubjectSchema = z.discriminatedUnion('kind', [
   })
 ])
 export const PermissionPolicySchema = z.object({
+  capabilityPolicies: z.record(z.string(), CapabilityAccessSchema).optional(),
+  botAdministrators: z.array(BotAdministratorSchema).max(100).optional(),
   default: z.enum(['allow', 'deny']).default('allow'),
   rules: z
     .array(

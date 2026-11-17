@@ -11,6 +11,7 @@ import {
   type PluginFailure
 } from './protocol'
 import { z } from 'zod'
+import { UncertainHostResult } from './uncertain'
 
 export class PluginInvocationError extends Error {
   constructor(readonly failure: PluginFailure) {
@@ -147,6 +148,13 @@ export class PluginPeer {
                   }
                   return { type: 'host_result', id: message.id, value }
                 } catch (error) {
+                  if (error instanceof UncertainHostResult) {
+                    return {
+                      type: 'host_error',
+                      id: message.id,
+                      error: { code: 'unknown', message: error.message }
+                    }
+                  }
                   let errorMessage = String(error).slice(0, 2000)
                   const io = z.object({ code: z.string().regex(/^E[A-Z0-9_]{1,30}$/u) }).safeParse(error)
                   if (io.success) {

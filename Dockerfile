@@ -7,7 +7,9 @@ WORKDIR /app
 COPY package.json bun.lock bunfig.toml ./
 RUN bun install --frozen-lockfile
 COPY src ./src
-COPY web ./web
+COPY dashboard/package.json dashboard/bun.lock ./dashboard/
+RUN bun install --cwd dashboard --frozen-lockfile
+COPY dashboard ./dashboard
 COPY scripts ./scripts
 COPY examples ./examples
 COPY config/bot.example.json config/providers.example.json ./config/

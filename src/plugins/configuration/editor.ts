@@ -22,8 +22,20 @@ import type { z } from 'zod'
 import { usesGsviConfiguration, gsviWorkerDefinition } from '../../services/gsvi/plugin-config/definition'
 import { gsviPageValues, saveGsviPage, GsviPageSchema } from '../../services/gsvi/plugin-config/values'
 import { gsviChoiceState } from '../../services/gsvi/plugin-config/cache'
+import { configurationSecretValues, type ReadConfigSecretsSchema } from './secret-editor'
 
 export class PluginConfigurationEditor {
+  async readSecrets(id: string, input: z.infer<typeof ReadConfigSecretsSchema>) {
+    const state = await this.prepare(id, input.target)
+    if (state.token !== input.revision || state.bundle.revision !== input.release) {
+      throw new SettingsEditError('配置已变化，请刷新后查看。', 409)
+    }
+    return configurationSecretValues(
+      state.definition ?? {},
+      mergeConfig(state.inherited, state.current, state.definition)
+    )
+  }
+
   constructor(
     readonly plugins: PluginEditor,
     readonly framework: FrameworkEditor,

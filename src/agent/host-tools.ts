@@ -35,7 +35,7 @@ export interface HostToolServices {
     outboundId?: string
   }>
   assertActive?(): void
-  authorize(capability: string): void
+  authorize(capability: string, surface?: 'tool'): void
   schedules?: ScheduleToolServices
   jobs?: JobToolServices
   media?: MediaToolServices

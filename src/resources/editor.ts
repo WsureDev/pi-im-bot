@@ -29,6 +29,27 @@ import { gsviPublic, gsviFromDraft, type GsviDraft } from '../services/gsvi/conf
 import { usesMcpTask, mcpToolAvailable } from './mcp/tasks'
 
 export class ResourceEditor {
+  updateProvided(
+    expected: string,
+    change: (resources: ResourcesConfig['provided']) => ResourcesConfig['provided']
+  ) {
+    return this.mutate(expected, (config) => {
+      config.provided = change(config.provided)
+    })
+  }
+  async readServiceKey(id: string, expected: string) {
+    const file = await this.file()
+    if (file.revision !== expected) {
+      throw new SettingsEditError('配置已变化，请刷新后查看。', 409)
+    }
+    const service = file.config.services.find((entry) => {
+      return entry.id === id
+    })
+    if (!service) {
+      throw new SettingsEditError('服务不存在')
+    }
+    return { value: service.apiKey ?? '' }
+  }
   constructor(
     private readonly configuration: () => Configuration,
     private readonly apply: (library: ResourceLibrary) => void,

@@ -60,6 +60,19 @@ export class ProviderEditor {
     const file = await this.readFile()
     return this.snapshot(file.config, file.revision)
   }
+  async readApiKey(id: string, revision: string) {
+    const file = await this.readFile()
+    if (file.revision !== revision) {
+      throw conflict()
+    }
+    const provider = file.config.providers.find((entry) => {
+      return entry.id === id
+    })
+    if (!provider) {
+      throw new ProviderEditError('提供商不存在', 404)
+    }
+    return { value: provider.apiKey ?? '' }
+  }
 
   private async mutate(revision: string, change: (config: ProvidersConfig) => void) {
     return this.exclusive(async () => {

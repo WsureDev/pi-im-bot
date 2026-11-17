@@ -6,6 +6,10 @@ import { SaveMcpServerSchema, ResourceRevisionSchema, SaveSkillSchema } from '..
 import type { ResourceEditor } from '../resources/editor'
 
 export function registerResourceRoutes(app: Hono, editor: ResourceEditor, changed: () => void) {
+  app.post('/api/resources/services/:id/api-key', sValidator('json', ResourceRevisionSchema), async (c) => {
+    c.header('Cache-Control', 'no-store')
+    return c.json(await editor.readServiceKey(c.req.param('id'), c.req.valid('json').revision))
+  })
   app.get('/api/resources', async (c) => {
     return c.json(await editor.read())
   })

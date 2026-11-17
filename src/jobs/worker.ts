@@ -231,9 +231,15 @@ export class JobWorker {
             async send() {
               throw new Error('后台操作不直接发送群消息')
             },
-            authorize(capability) {
+            authorize(capability, surface) {
               signal.throwIfAborted()
-              coordinator.authorizeContext(job.roomId, value.mode, invocation.input.context, capability)
+              coordinator.authorizeContext(
+                job.roomId,
+                value.mode,
+                invocation.input.context,
+                capability,
+                surface
+              )
             }
           },
           { trace, provider() {}, preview() {}, tool() {} }

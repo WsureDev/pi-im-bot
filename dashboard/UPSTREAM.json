@@ -1,0 +1,204 @@
+{
+  "repository": "https://github.com/AstrBotDevs/AstrBot",
+  "tag": "v4.28.0",
+  "commit": "a412146401426c0cdff8bbefb8627a03da519da8",
+  "files": [
+    {
+      "path": "src/components/shared/AstrBotConfig.vue",
+      "upstreamPath": "dashboard/src/components/shared/AstrBotConfig.vue",
+      "originalSha256": "92fd19c409c7b194a66df6e4c2ad0f89e3c98b10be55d4f762c456f4afd0bce1"
+    },
+    {
+      "path": "src/components/shared/ConfigItemRenderer.vue",
+      "upstreamPath": "dashboard/src/components/shared/ConfigItemRenderer.vue",
+      "originalSha256": "60f627012be8b1b5d24e8992b643639c5737d14f0a8e355d1ef3231e0ab61b58"
+    },
+    {
+      "path": "src/components/shared/ListConfigItem.vue",
+      "upstreamPath": "dashboard/src/components/shared/ListConfigItem.vue",
+      "originalSha256": "8ed5dff260e066e516a05833d25ba5c94a7698378e3ef860288eee5767768c3c"
+    },
+    {
+      "path": "src/components/shared/ObjectEditor.vue",
+      "upstreamPath": "dashboard/src/components/shared/ObjectEditor.vue",
+      "originalSha256": "0ea40ab16789007e5300aa1bf6506a87c5bfc2bef4674e57c7a193868a61c725"
+    },
+    {
+      "path": "src/components/shared/TemplateListEditor.vue",
+      "upstreamPath": "dashboard/src/components/shared/TemplateListEditor.vue",
+      "originalSha256": "6918e0dd06e9f0c596636cb55381446e48585f94175bc6ad206df073c3b173d9"
+    },
+    {
+      "path": "src/components/shared/ConfigDefaultReset.vue",
+      "upstreamPath": "dashboard/src/components/shared/ConfigDefaultReset.vue",
+      "originalSha256": "4fcf198cfba1b337454da1e5cfa7154ee7a887c3ced27fbb681c91885de3fdf1"
+    },
+    {
+      "path": "src/components/config/UnsavedChangesConfirmDialog.vue",
+      "upstreamPath": "dashboard/src/components/config/UnsavedChangesConfirmDialog.vue",
+      "originalSha256": "cecb890313afc96624957b62932a9d715869aa3b775e131a3a6bdb06e2eb218d"
+    },
+    {
+      "path": "src/components/ConfirmDialog.vue",
+      "upstreamPath": "dashboard/src/components/ConfirmDialog.vue",
+      "originalSha256": "b876963de5b4786bfa6b53a12fc672006d8ca4c16225375efbb52e71f96a6712"
+    },
+    {
+      "path": "src/components/chat/ChatMessageList.vue",
+      "upstreamPath": "dashboard/src/components/chat/ChatMessageList.vue",
+      "originalSha256": "b78de81121f91fdd9c5850d95826526e6a248b29181b0b5ffebab40df85a010a"
+    },
+    {
+      "path": "src/components/chat/ChatInput.vue",
+      "upstreamPath": "dashboard/src/components/chat/ChatInput.vue",
+      "originalSha256": "5c02737c42c338854f4ec859dd567b00c61e2d16c7d08f5ea260e44c7c7f6602"
+    },
+    {
+      "path": "src/components/chat/message_list_comps/MarkdownMessagePart.vue",
+      "upstreamPath": "dashboard/src/components/chat/message_list_comps/MarkdownMessagePart.vue",
+      "originalSha256": "ad785d1c4b270bd26a3a7b97443ff5eda95c0d893dd1602d32516030914725d2"
+    },
+    {
+      "path": "src/components/chat/markdownRenderConfig.ts",
+      "upstreamPath": "dashboard/src/components/chat/markdownRenderConfig.ts",
+      "originalSha256": "8a3c70a1550426d9edaa8e3d1b3a71f3e44e4b63b0cafc036e3cba4325d8d8c1"
+    },
+    {
+      "path": "src/composables/useConfigTextResolver.js",
+      "upstreamPath": "dashboard/src/composables/useConfigTextResolver.js",
+      "originalSha256": "c3169ab97024e051d8b0050e9b4a214cd33c884ce389513005d93a5727d9f4d2"
+    },
+    {
+      "path": "src/utils/pluginI18n.js",
+      "upstreamPath": "dashboard/src/utils/pluginI18n.js",
+      "originalSha256": "f867670e8c52f2dda9270a9730767d39338e23ceadac20007c59b3acb71e5337"
+    },
+    {
+      "path": "src/utils/pluginConfigDefaults.mjs",
+      "upstreamPath": "dashboard/src/utils/pluginConfigDefaults.mjs",
+      "originalSha256": "1c1040eda33a22487fc1516f771970d610b692f8f84deb581048ec9bb5102fb4"
+    },
+    {
+      "path": "src/theme/LightTheme.ts",
+      "upstreamPath": "dashboard/src/theme/LightTheme.ts",
+      "originalSha256": "2f4fcf828ad1ac349272d971fccf5fbc1f795ce8bb8a2e6c1056b326c9f33567"
+    },
+    {
+      "path": "src/theme/DarkTheme.ts",
+      "upstreamPath": "dashboard/src/theme/DarkTheme.ts",
+      "originalSha256": "e5969eb368db8966565cb108b2e98d6b8c44e8593d5f1f30d5b1ae8942c5f737"
+    },
+    {
+      "path": "src/types/themeTypes/ThemeType.ts",
+      "upstreamPath": "dashboard/src/types/themeTypes/ThemeType.ts",
+      "originalSha256": "59432ebc18a06124038164cf80a2e9714e874abc3fdad2fa948e7c07035f768d"
+    },
+    {
+      "path": "src/layouts/full/FullLayout.vue",
+      "upstreamPath": "dashboard/src/layouts/full/FullLayout.vue",
+      "originalSha256": "23fe116a8ae85b5a91c9776e169986f44eec2bcab1417527fef1bbcb1dec55b1"
+    },
+    {
+      "path": "src/layouts/full/vertical-sidebar/VerticalSidebar.vue",
+      "upstreamPath": "dashboard/src/layouts/full/vertical-sidebar/VerticalSidebar.vue",
+      "originalSha256": "d7226c92d724c47327864c5e1561dcb83863ff7d81cd34bc341b9d8a6d443e84"
+    },
+    {
+      "path": "src/layouts/full/vertical-header/VerticalHeader.vue",
+      "upstreamPath": "dashboard/src/layouts/full/vertical-header/VerticalHeader.vue",
+      "originalSha256": "c3a1ef1bb042d933e15683f6682840f775ae0f884ffd1ea96470168418e6ce63"
+    },
+    {
+      "path": "src/views/extension/PluginWorkspacePage.vue",
+      "upstreamPath": "dashboard/src/views/extension/PluginWorkspacePage.vue",
+      "originalSha256": "8a44d3bfcb220202339cc0eafdc657ab1f8b79f12a13d8d67149fcf72ed6f7c4"
+    },
+    {
+      "path": "src/views/ProviderPage.vue",
+      "upstreamPath": "dashboard/src/views/ProviderPage.vue",
+      "originalSha256": "3e4bd4a95f3efa6b98513e7b7895849d3d724cf96fd823372907a04e10b91574"
+    },
+    {
+      "path": "src/views/PlatformPage.vue",
+      "upstreamPath": "dashboard/src/views/PlatformPage.vue",
+      "originalSha256": "2a0d9185011c814d576092e9eed3431a696924297ab85f7b3fe77208788cd13a"
+    },
+    {
+      "path": "src/views/ConfigPage.vue",
+      "upstreamPath": "dashboard/src/views/ConfigPage.vue",
+      "originalSha256": "0bb900c130648ef6cd95eb5ed12a44922835c340389c5710fbdfaa6d8c6a9a40"
+    },
+    {
+      "path": "src/views/CronJobPage.vue",
+      "upstreamPath": "dashboard/src/views/CronJobPage.vue",
+      "originalSha256": "79a1563b0090ca2e469cb171bbd3c672e7336a347d8e0f1c3b3154b4f4566cc5"
+    },
+    {
+      "path": "src/views/ChatPage.vue",
+      "upstreamPath": "dashboard/src/views/ChatPage.vue",
+      "originalSha256": "13e0a93d2590b168ae9aaab533f976f1c7b64968c1ebc886944b885839aa5463"
+    },
+    {
+      "path": "src/i18n/locales/zh-CN/core/common.json",
+      "upstreamPath": "dashboard/src/i18n/locales/zh-CN/core/common.json",
+      "originalSha256": "eb5cce82afb71add3f1643c774faafb7585bd54c41d949461ed16a32a723b81c"
+    },
+    {
+      "path": "src/i18n/locales/zh-CN/core/shared.json",
+      "upstreamPath": "dashboard/src/i18n/locales/zh-CN/core/shared.json",
+      "originalSha256": "8b1fcc83265b306f406637b8b380ccb72e492f8902621b01757141a6d8607252"
+    },
+    {
+      "path": "src/i18n/locales/zh-CN/features/chat.json",
+      "upstreamPath": "dashboard/src/i18n/locales/zh-CN/features/chat.json",
+      "originalSha256": "f87cfb5e44b528def0badc06457dd53e9ceb43aab9f19da74b15168842eb9e74"
+    },
+    {
+      "path": "src/i18n/locales/zh-CN/features/config-metadata.json",
+      "upstreamPath": "dashboard/src/i18n/locales/zh-CN/features/config-metadata.json",
+      "originalSha256": "e32a91a69402228be540c66af23ac59159c8ebec7674f871deff2f2aa3b6fe92"
+    },
+    {
+      "path": "src/utils/clipboard.ts",
+      "upstreamPath": "dashboard/src/utils/clipboard.ts",
+      "originalSha256": "1d23a7c126451e595abca09cf87053c3e20fc65bf01aadade7b2a6b949cc9e4d"
+    },
+    {
+      "path": "src/assets/mdi-subset/materialdesignicons-subset.css",
+      "upstreamPath": "dashboard/src/assets/mdi-subset/materialdesignicons-subset.css",
+      "originalSha256": "37ade69c9086991d51604487a061762657248edd88e3f945f5d4562e807d330c"
+    },
+    {
+      "path": "src/assets/mdi-subset/materialdesignicons-webfont-subset.woff",
+      "upstreamPath": "dashboard/src/assets/mdi-subset/materialdesignicons-webfont-subset.woff",
+      "originalSha256": "e0c29b08c9a59fb09a85d2fcd92d011007624b7bf3373058764d1e9a2c2aeacb"
+    },
+    {
+      "path": "src/assets/mdi-subset/materialdesignicons-webfont-subset.woff2",
+      "upstreamPath": "dashboard/src/assets/mdi-subset/materialdesignicons-webfont-subset.woff2",
+      "originalSha256": "977aac18d57500839170f65b90d28629528ef278a24fc8a57760f15e5b743bff"
+    }
+  ],
+  "designReferences": [
+    {
+      "upstreamPath": "dashboard/src/components/config/AstrBotCoreConfigWrapper.vue",
+      "sha256": "70af73e0f40490fd4b887d739dbb0cfacc275f0c8c098720321b8329d97686d2",
+      "purpose": "Configuration hierarchy, direct fields, action prominence and surface styling"
+    },
+    {
+      "upstreamPath": "dashboard/src/components/shared/PersonaForm.vue",
+      "sha256": "7f87ad23232cab804972a32387e197f16859f928f4f0d78f0f23c28f1e277ed7",
+      "purpose": "Configuration hierarchy, direct fields, action prominence and surface styling"
+    },
+    {
+      "upstreamPath": "dashboard/src/scss/_variables.scss",
+      "sha256": "0e329ec6db2947dabc3653d9451816e07c7c9ef24ba42067911b4fbd54322664",
+      "purpose": "Configuration hierarchy, direct fields, action prominence and surface styling"
+    },
+    {
+      "upstreamPath": "dashboard/src/scss/components/_VCard.scss",
+      "sha256": "0c5f2420128f7f3df7d22f5d0b5bb734ec268b79b23880ef939150539089c11a",
+      "purpose": "Configuration hierarchy, direct fields, action prominence and surface styling"
+    }
+  ]
+}

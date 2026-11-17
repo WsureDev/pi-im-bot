@@ -9,6 +9,7 @@ export const JobSpecSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('tool'),
     capability: z.string().min(1),
+    resourceId: z.string().optional(),
     arguments: z.record(z.string(), z.json())
   })
 ])

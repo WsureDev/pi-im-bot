@@ -5,10 +5,12 @@ import { McpServerSchema } from './mcp/schema'
 import { SkillConfigSchema } from './skills/schema'
 import { PluginInstanceSchema } from '../plugins/config'
 import { PluginCatalogSourceSchema } from '../plugins/market/contracts'
+import { ProvidedResourceSchema } from '../resource-providers/definition'
 
 export const ResourcesConfigSchema = z
   .object({
     version: z.literal(1).default(1),
+    provided: z.array(ProvidedResourceSchema).max(2000).default([]),
     comfyServices: z.array(ComfyServiceSchema).max(32).default([]),
     workflows: z.array(WorkflowSchema).max(64).default([]),
     services: z.array(GsviServiceSchema).max(64).default([]),
@@ -19,6 +21,15 @@ export const ResourcesConfigSchema = z
   })
   .strict()
   .superRefine((value, ctx) => {
+    if (
+      new Set(
+        value.provided.map((entry) => {
+          return entry.id
+        })
+      ).size !== value.provided.length
+    ) {
+      ctx.addIssue({ code: 'custom', message: '资源实例 ID 重复' })
+    }
     for (const service of value.comfyServices) {
       if (
         new Set(service.workflows).size !== service.workflows.length ||

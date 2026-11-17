@@ -15,9 +15,22 @@ export const PluginInvocationViewSchema = z.object({
   origin: PluginOriginSchema,
   deadlineAt: z.number(),
   actors: z
-    .array(z.object({ id: z.string(), name: z.string(), origin: z.string(), role: z.string().optional() }))
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        origin: z.string(),
+        role: z.string().optional(),
+        chatKind: z.enum(['group', 'direct']).optional(),
+        chatId: z.string().optional(),
+        roles: z.array(z.enum(['bot_admin', 'channel_admin', 'everyone'])).default([])
+      })
+    )
     .max(20),
   settings: z.record(z.string(), z.json()),
+  resource: z
+    .object({ id: z.string(), externalId: z.string(), configuration: z.record(z.string(), z.json()) })
+    .optional(),
   inputRevision: z.string(),
   grants: z.array(z.string()),
   limits: z.object({ backgroundStatelessConcurrency: z.number().int().nonnegative() }).optional()

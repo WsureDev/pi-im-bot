@@ -1,4 +1,10 @@
 export const builtinCapabilities = [
+  { id: 'command:help', name: '帮助', kind: 'command' },
+  { id: 'command:status', name: '会话状态', kind: 'command' },
+  { id: 'command:skills', name: '技能目录', kind: 'command' },
+  { id: 'command:skill', name: '显式使用技能', kind: 'command' },
+  { id: 'command:jobs', name: '任务列表', kind: 'command' },
+  { id: 'command:job', name: '任务控制', kind: 'command' },
   { id: 'comfy_catalog', name: '读取Comfy目录', kind: 'action' },
   { id: 'comfy_generate', name: '提交/核对Comfy任务', kind: 'action' },
   { id: 'comfy_manage', name: '管理Comfy政策（需显式授权）', kind: 'action' },

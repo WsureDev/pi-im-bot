@@ -104,7 +104,7 @@ export const WorkflowSchema = z
       ...workflow.bindings.loras.flatMap((slot) => {
         return [slot.name, slot.strength, slot.clipStrength, slot.enabled]
       })
-    ].filter((value) => {
+    ].filter((value): value is string => {
       return value !== undefined
     })
     for (const name of names) {

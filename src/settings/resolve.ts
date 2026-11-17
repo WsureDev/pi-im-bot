@@ -76,6 +76,12 @@ export function resolveSettings(
       sources.permissions = layer.source
     }
   }
+  // Bot administrators are a global directory, never a room-supplied role claim.
+  if (framework.defaults.permissions.botAdministrators) {
+    settings.permissions.botAdministrators = structuredClone(framework.defaults.permissions.botAdministrators)
+  } else {
+    delete settings.permissions.botAdministrators
+  }
   const persona = framework.personas.find((item) => {
     return item.id === settings.preferences.personaId
   })

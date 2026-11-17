@@ -1,23 +1,15 @@
-import { mkdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { resolve, join } from 'node:path'
 
-const outdir = process.env.BOT_WEB_DIR ?? 'dist'
-await mkdir(outdir, { recursive: true })
-const result = await Bun.build({
-  entrypoints: ['web/app.ts'],
-  outdir,
-  target: 'browser',
-  minify: true,
-  sourcemap: 'external'
+const projectDir = resolve(import.meta.dir, '..')
+const outdir = resolve(process.env.BOT_WEB_DIR ?? join(projectDir, 'dist'))
+const child = Bun.spawn([process.execPath, 'run', 'build'], {
+  cwd: join(projectDir, 'dashboard'),
+  env: { ...process.env, BOT_WEB_DIR: outdir },
+  stdout: 'inherit',
+  stderr: 'inherit'
 })
-if (!result.success) {
-  for (const log of result.logs) {
-    console.error(log)
-  }
-  process.exit(1)
+const code = await child.exited
+if (code !== 0) {
+  process.exit(code)
 }
-await Bun.write(join(outdir, 'index.html'), await Bun.file('web/index.html').text())
-await Bun.write(join(outdir, 'styles.css'), await Bun.file('web/styles.css').text())
-await Bun.write(join(outdir, 'providers.css'), await Bun.file('web/providers/styles.css').text())
-await Bun.write(join(outdir, 'plugins.css'), await Bun.file('web/plugins/styles.css').text())
-console.log('Built Mock chat UI')
+console.log('Built Pi Vue dashboard: ' + outdir)

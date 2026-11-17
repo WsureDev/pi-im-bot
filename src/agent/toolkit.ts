@@ -1,3 +1,4 @@
+import { assertToolEnabled } from '../permissions/capability-policy'
 import { projectPluginHistory } from '../plugins/hooks/model-history'
 import type { Configuration } from '../config/load'
 import type { Room } from '../domain/message'
@@ -137,7 +138,33 @@ export function createToolkit(
   function capabilityFor(name: string) {
     return plugins.capabilityFor(skills.capabilityFor(mcp.capabilityFor(name)))
   }
-  hostTools = authorizedTools(hostTools, input.context.authority, services.authorize, capabilityFor)
+  function directOperation(capability: string) {
+    return Boolean(
+      input.context.jobId &&
+        input.context.entrySurface === 'command' &&
+        input.context.entryCapability === capability
+    )
+  }
+  hostTools = hostTools.filter((tool) => {
+    return (
+      directOperation(capabilityFor(tool.name)) ||
+      input.context.effective.settings.permissions.capabilityPolicies?.[capabilityFor(tool.name)]
+        ?.toolEnabled !== false
+    )
+  })
+  hostTools = authorizedTools(
+    hostTools,
+    input.context.authority,
+    (capability) => {
+      if (directOperation(capability)) {
+        services.authorize(capability)
+        return
+      }
+      assertToolEnabled(input.context.effective.settings, capability)
+      services.authorize(capability, 'tool')
+    },
+    capabilityFor
+  )
   const exposure = {
     ...effective.settings.resources,
     permanentTools: hostTools
@@ -155,7 +182,10 @@ export function createToolkit(
   let context: Promise<string | undefined> | undefined
   const deferred = effective.settings.resources.toolExposure === 'deferred'
   const searchAllowed =
-    deferred && hostTools.length > 0 && input.context.authority.capabilities.includes('tool_search')
+    deferred &&
+    hostTools.length > 0 &&
+    input.context.authority.capabilities.includes('tool_search') &&
+    input.context.effective.settings.permissions.capabilityPolicies?.tool_search?.toolEnabled !== false
   if (searchAllowed) {
     selectedTools.push('tool_search')
   }

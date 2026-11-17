@@ -25,6 +25,13 @@ export class OneBotSettings {
     const { config, version } = await this.load()
     return this.publicSettings(config, version)
   }
+  async readToken(version: string) {
+    const current = await this.load()
+    if (current.version !== version) {
+      throw new OneBotSettingsError('配置已变化，请刷新后查看。', 409)
+    }
+    return { value: current.config.onebot.accessToken }
+  }
 
   async save(input: OneBotSettingsInput) {
     const update = OneBotSettingsInputSchema.parse(input)

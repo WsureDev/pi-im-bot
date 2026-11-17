@@ -6,10 +6,14 @@
 
 ```sh
 bun install --frozen-lockfile
+bun run install:dashboard
+bun run build
 bun run start
 ```
 
-默认监听 `0.0.0.0:19335`，本机访问示例为 `http://localhost:19335`。局域网使用部署主机的可达地址直接访问。配置入口和生效方式见 [部署配置](docs/configuration.md)。开发时运行 `bun run dev`；修改前端后运行 `bun run build` 更新静态文件。
+默认监听 `0.0.0.0:19335`，本机访问示例为 `http://localhost:19335`。局域网使用部署主机的可达地址直接访问。配置入口和生效方式见 [部署配置](docs/configuration.md)。前端采用独立 `dashboard/` 中的 Vue 3、Vuetify、Pinia、Vue Router 和 Vite，基于固定版本的 AstrBot Dashboard。服务启动只读取已构建的 `dist/`，首次运行前必须构建；`BOT_WEB_DIR` 可指定独立静态目录。
+
+开发后端运行 `bun run dev`，前端热更新运行 `bun run dev:dashboard`。Vite 的 `/api` 和 WebSocket 默认代理到 `http://127.0.0.1:19335`，可用 `BOT_API_URL` 指向独立测试后端。构建、上游来源及迁移验收见 [Dashboard 说明](dashboard/README.md)。
 
 当前主机也可直接使用项目内的 Bun：
 
@@ -67,7 +71,7 @@ Mock 聊天可上传附件并引用已有消息。QQ 接收数组和 CQ 字符�
 
 核心上下文、文字变换、呈现选择和持久回执观察已接入，可按群配置顺序与优先级；延后撤回由核心任务保存和执行。详见 [共享切入点与持久观察](docs/framework/plugin-pipeline.md)。插件自定义切入点、固定容量持久卷、大文件流式发布和统一产物额度也已实现，四个授权临时容器通过实际验收并清理，见 [插件数据与产物额度](docs/framework/plugin-storage.md)。网页支持登记、导入、配置和诊断；执行状态动态读取，安装成功不等于实例在当前范围可执行。
 
-首批管理功能与实际边界见 [插件中心实现](docs/framework/plugin-management.md)。秘密值单独保留，版本固定到内容摘要；下载发布 ZIP 不包含实例设置或数据。可用 `bun run pack:plugin examples/plugins/echo /tmp/echo.zip` 打包。`bun run preview:plugins` 的 19336 端口仍保留早期浏览器示例，不是正式管理入口。
+首批管理功能与实际边界见 [插件中心实现](docs/framework/plugin-management.md)。秘密值单独保留，版本固定到内容摘要；下载发布 ZIP 不包含实例设置或数据。可用 `bun run pack:plugin examples/plugins/echo /tmp/echo.zip` 打包。早期插件界面预览脚本已退役，统一使用 Dashboard 的插件中心。
 
 GitHub 链接支持仓库、`.git`、分支/标签、commit、具体插件目录和 Release 页面。没有 Release 也可从源码安装，先固定到 commit；仓库需含 `plugin.json` 和已声明的 JS/TS 入口及依赖。安装时不执行入口或宿主构建脚本。
 
@@ -274,6 +278,7 @@ ws://bot.example:19335/onebot/v11/ws
 ```sh
 bun run check
 bun test tests
+bun run test:dashboard
 bun run build
 bun run format:check
 ```
@@ -304,7 +309,7 @@ src/runtime/     统一任务入口、并发、事件和交付
 src/scheduler/   持久计划与时间触发
 src/storage/     宿主状态；Pi 对话仍由 Pi 管理
 src/http/        工作台 API
-web/            Mock 聊天与调试界面
+dashboard/      Vue / Vuetify 工作台、页面状态、API 适配、上游组件与独立锁文件
 ```
 
 参考资料：

@@ -37,6 +37,8 @@ test('OneBot settings preserve, replace and clear tokens without exposing them o
   const { editor, path, current } = await setup()
   let view = await editor.read()
   expect(JSON.stringify(view)).not.toContain('original-token')
+  expect(await editor.readToken(view.version)).toEqual({ value: 'original-token' })
+  await expect(editor.readToken('stale')).rejects.toThrow('配置已变化')
   view = await editor.save(
     OneBotSettingsInputSchema.parse({
       ...view,

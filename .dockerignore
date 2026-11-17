@@ -8,6 +8,7 @@ AGENTS.override.md
 private-review
 **/private-review
 node_modules
+**/node_modules
 data
 plugins
 plugin-data

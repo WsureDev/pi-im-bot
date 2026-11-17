@@ -1,12 +1,13 @@
 import { z } from 'zod'
 import { resolve, relative, isAbsolute, join } from 'node:path'
 import { PluginStorageSchema } from '../storage/config'
+import { PluginWorkerImageSchema } from './image-schema'
 
 export const PluginRuntimeSchema = z
   .object({
     enabled: z.boolean().default(false),
     socketPath: z.string().min(1).default('/var/run/docker.sock'),
-    image: z.string().min(1).max(300).default('oven/bun:1.4.4'),
+    image: PluginWorkerImageSchema.default('oven/bun:1.4.4'),
     packageDir: z.string().default('plugins'),
     dataDir: z.string().default('plugin-data'),
     runtimeDir: z.string().default('data/plugin-runtime'),

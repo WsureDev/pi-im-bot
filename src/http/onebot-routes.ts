@@ -7,6 +7,14 @@ import { OneBotSettingsInputSchema } from '../channels/onebot/status'
 import type { OneBotSettings } from '../channels/onebot/settings'
 
 export function registerOneBotRoutes(app: Hono, settings: OneBotSettings, adapter: OneBotAdapter) {
+  app.post(
+    '/api/onebot/settings/token',
+    sValidator('json', z.object({ version: z.string() }).strict()),
+    async (c) => {
+      c.header('Cache-Control', 'no-store')
+      return c.json(await settings.readToken(c.req.valid('json').version))
+    }
+  )
   app.get('/api/onebot/settings', async (c) => {
     return c.json(await settings.read())
   })

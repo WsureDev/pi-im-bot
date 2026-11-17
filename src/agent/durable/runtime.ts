@@ -139,7 +139,7 @@ export class DurableAgentRuntime {
       tools.push({
         ...search,
         async execute(args, api, callContext) {
-          services.authorize('tool_search')
+          services.authorize('tool_search', 'tool')
           const result = await search.execute(SearchInputSchema.parse(args), api, callContext)
           await api.commit(async (tx) => {
             const state = await tx.doc(ToolExposure, api.conversationId)

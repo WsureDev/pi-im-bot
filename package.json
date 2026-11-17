@@ -6,15 +6,18 @@
   "packageManager": "bun@1.4.4",
   "scripts": {
     "dev": "bun --watch src/main.ts",
+    "dev:dashboard": "bun run --cwd dashboard dev",
+    "install:dashboard": "bun install --cwd dashboard --frozen-lockfile",
     "start": "bun src/main.ts",
-    "preview:plugins": "bun scripts/preview-plugin-center.ts",
     "pack:plugin": "bun scripts/pack-plugin.ts",
     "share:export": "bun scripts/export-source.ts",
     "build": "bun scripts/build.ts",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && bun run --cwd dashboard check",
     "test": "bun test tests",
-    "format": "bunx --bun prettier --write src web scripts tests config/*.example.json",
-    "format:check": "bunx --bun prettier --check src web scripts tests config/*.example.json"
+    "test:dashboard": "bun test --cwd dashboard tests",
+    "test:preview": "bun test ./preview/tests/control.test.ts ./preview/tests/operations.test.ts",
+    "format": "bunx --bun prettier --write src dashboard/src dashboard/vite.config.ts scripts tests config/*.example.json",
+    "format:check": "bunx --bun prettier --check src dashboard/src dashboard/vite.config.ts scripts tests config/*.example.json"
   },
   "dependencies": {
     "@earendil-works/chord": "1.5.0",
@@ -25,6 +28,7 @@
     "@earendil-works/pi-mcp": "1.5.0",
     "@earendil-works/pi-schema": "1.5.0",
     "@hono/standard-validator": "0.4.1",
+    "ajv": "8.17.1",
     "croner": "11.0.0",
     "dompurify": "^3.4.17",
     "hono": "4.13.17",

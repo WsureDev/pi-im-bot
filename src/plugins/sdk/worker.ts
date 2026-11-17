@@ -92,7 +92,11 @@ socket.on('data', (chunk) => {
         return
       }
       if (message.type === 'host_error') {
-        pending.get(message.id)?.reject(new Error(message.error.message))
+        let error: Error = new Error(message.error.message)
+        if (message.error.code === 'unknown') {
+          error = new UncertainHostResult(message.error.message)
+        }
+        pending.get(message.id)?.reject(error)
         return
       }
       if (message.type === 'cancel') {
@@ -195,10 +199,14 @@ socket.on('data', (chunk) => {
           controller.signal.throwIfAborted()
           send({ type: 'result', invocationId: message.context.id, value: z.json().parse(output) })
         } catch (error) {
+          let code: 'validation' | 'handler' | 'unknown' = phase
+          if (error instanceof UncertainHostResult) {
+            code = 'unknown'
+          }
           send({
             type: 'error',
             invocationId: message.context.id,
-            error: { code: phase, message: String(error).slice(0, 2000) }
+            error: { code, message: String(error).slice(0, 2000) }
           })
         } finally {
           active.delete(message.context.id)
@@ -220,3 +228,4 @@ socket.on('close', () => {
 socket.on('error', () => {
   process.exit(1)
 })
+import { UncertainHostResult } from '../rpc/uncertain'

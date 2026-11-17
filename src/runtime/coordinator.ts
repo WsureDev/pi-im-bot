@@ -26,7 +26,9 @@ import { executeJobCommand, isJobCommand, jobCommandHelp } from '../jobs/command
 import { ConversationService } from '../conversations/service'
 import { resolveSettings } from '../settings/resolve'
 import { captureAuthority, assertCapability } from '../permissions/authorize'
-import { localIdentity, type TriggerIdentity, type Authority } from '../permissions/identity'
+import { localIdentity, identityForRoom, type TriggerIdentity, type Authority } from '../permissions/identity'
+import { assertResourceContext, assertResourceToolExport } from '../resource-providers/context'
+import { assertToolEnabled } from '../permissions/capability-policy'
 import { projectHistory, projectOutput } from '../messages/projection'
 import { freezeSnapshot } from './snapshot'
 import { requestedSkill } from '../resources/skills/invocation'
@@ -417,6 +419,8 @@ export class Coordinator {
     }
     const identity = {
       ...localIdentity(room.address.channel, room.address.accountId, actorId, actorName),
+      chatKind: room.address.kind,
+      chatId: room.address.chatId,
       messageIds: [message.id]
     }
     const control = this.prepareInbound(room, message, text, identity)
@@ -480,6 +484,8 @@ export class Coordinator {
       channel: incoming.address.channel,
       accountId: incoming.address.accountId,
       role: incoming.platformRole,
+      chatKind: incoming.address.kind,
+      chatId: incoming.address.chatId,
       messageIds: [message.id]
     })
     if (!incoming.isSelf && !message.recalled && prompt === null) {
@@ -726,6 +732,26 @@ export class Coordinator {
       }
     }
     const roomId = room.id
+    const managedCommand = /^\/(help|status|skills|skill|jobs|job)(?:\s|$)/u.exec(text.trim())
+    if (managedCommand) {
+      const settings = this.effective(roomId)
+      const capability = 'command:' + managedCommand[1]
+      if (settings.settings.permissions.capabilityPolicies?.[capability]) {
+        const guard = captureAuthority(
+          settings,
+          [identity],
+          undefined,
+          this.configuration().resources.capabilityIds(settings.settings)
+        )
+        try {
+          assertCapability(guard, settings.settings, capability)
+        } catch {
+          beginDispatch()
+          await this.delivery.send(room, '当前身份无权使用此指令。', undefined, 'system')
+          return null
+        }
+      }
+    }
     if (isJobCommand(text)) {
       beginDispatch()
       let response = '后台任务运行时尚未启用。'
@@ -1349,9 +1375,9 @@ export class Coordinator {
           }
         )
       },
-      authorize: (capability) => {
+      authorize: (capability, surface) => {
         assertActive()
-        this.authorizeContext(room.id, room.mode, input.context, capability)
+        this.authorizeContext(room.id, room.mode, input.context, capability, surface)
       },
       schedules: this.scheduleServices(room, input),
       jobs: this.jobs?.forInvocation({
@@ -1543,6 +1569,12 @@ export class Coordinator {
   }
 
   checkContext(roomId: string, mode: Room['mode'], context: ExecutionContext) {
+    assertResourceContext(this.configuration(), context)
+    if (context.entrySurface === 'tool' && context.entryCapability) {
+      assertResourceToolExport(this.configuration(), context.entryCapability)
+      assertToolEnabled(context.effective.settings, context.entryCapability)
+      assertToolEnabled(this.effective(roomId, context.conversationId).settings, context.entryCapability)
+    }
     const current = this.requireRoom(roomId)
     this.assertRoomEnabled(current)
     if (current.conversationEpoch !== context.conversationEpoch) {
@@ -1561,7 +1593,17 @@ export class Coordinator {
     }
   }
 
-  authorizeContext(roomId: string, mode: Room['mode'], context: ExecutionContext, capability: string) {
+  authorizeContext(
+    roomId: string,
+    mode: Room['mode'],
+    context: ExecutionContext,
+    capability: string,
+    surface?: 'tool'
+  ) {
+    if (surface === 'tool' || (context.entrySurface === 'tool' && context.entryCapability === capability)) {
+      assertToolEnabled(context.effective.settings, capability)
+      assertToolEnabled(this.effective(roomId, context.conversationId).settings, capability)
+    }
     this.checkContext(roomId, mode, context)
     const effective = this.effective(roomId, context.conversationId)
     if (!this.configuration().resources.capabilityIds(effective.settings).includes(capability)) {
@@ -1830,6 +1872,9 @@ export class Coordinator {
     ceiling?: Authority
   ): JobInvocation {
     const room = this.requireRoom(roomId)
+    identities = identities.map((identity) => {
+      return identityForRoom(identity, room.address)
+    })
     this.assertRoomEnabled(room)
     const config = this.configuration()
     const effective = this.effective(roomId)

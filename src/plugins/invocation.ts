@@ -8,6 +8,7 @@ import { revision } from '../settings/resolve'
 import { PluginInvocationViewSchema, type PluginInvocationView } from './rpc/protocol'
 import { mergeConfig, validateConfig } from './configuration/values'
 import { gsviWorkerDefinition, gsviBusinessValues } from '../services/gsvi/plugin-config/definition'
+import { triggerRoles } from '../permissions/capability-policy'
 
 export interface PluginInvocation {
   deadlineAt?: number
@@ -49,6 +50,19 @@ export function pluginInvocationView(
   callId: string
 ) {
   const context = invocation.input.context
+  let resource: PluginInvocationView['resource']
+  if (context.resourceId) {
+    const stored = invocation.config.resources.config.provided.find((entry) => {
+      return entry.id === context.resourceId && entry.providerId === binding.instance.id
+    })
+    if (stored) {
+      resource = {
+        id: stored.id,
+        externalId: stored.externalId,
+        configuration: structuredClone(stored.configuration)
+      }
+    }
+  }
   const settings = mergeConfig(
     binding.instance.settings,
     context.effective.settings.extensions.settings[binding.instance.id] ?? {},
@@ -67,9 +81,18 @@ export function pluginInvocationView(
     conversationEpoch: context.conversationEpoch,
     origin: invocation.origin ?? invocation.input.source,
     actors: context.authority.identities.map((identity) => {
-      return { id: identity.actorId, name: identity.actorName, origin: identity.origin, role: identity.role }
+      return {
+        id: identity.actorId,
+        name: identity.actorName,
+        origin: identity.origin,
+        role: identity.role,
+        chatKind: identity.chatKind,
+        chatId: identity.chatId,
+        roles: triggerRoles(context.effective.settings, identity)
+      }
     }),
     settings: gsviBusinessValues(binding.bundle, settings),
+    resource,
     inputRevision: revision(input),
     grants,
     deadlineAt: Date.now() + timeoutMs

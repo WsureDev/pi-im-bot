@@ -7,6 +7,7 @@ export {
 export { ComfyInputSchema, ComfyItemSchema } from '../../services/comfy/protocol'
 import type { PluginInvocationView, PluginOperationOutcome, PluginResult } from '../rpc/protocol'
 export { gsvi, readMedia } from './services'
+export { resourceHttp } from './resource-http'
 export { gsviCatalogue, gsviCataloguePage, gsviCatalogueMatch } from './services'
 export { pythonCasefold, pythonCompare, pythonDecimal, pythonStrip } from '../../services/gsvi/unicode'
 export { GsviInputSchema, GsviResultSchema } from '../../services/gsvi/schema'

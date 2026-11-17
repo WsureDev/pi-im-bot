@@ -83,7 +83,7 @@ export async function executePluginCommand(
       throw new Error('后台任务运行时尚未启用')
     }
     const job = await jobs
-      .forInvocation(jobInvocation)
+      .forInvocation(jobInvocation, 'command')
       .operation(operation.operation.title, capability, args, callId)
     return { summary: `已受理「${job.title}」，任务 ${job.id.slice(0, 8)}。完成后会回复。`, artifactIds: [] }
   }

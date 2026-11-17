@@ -5,6 +5,10 @@ import { RunInputSchema, RunSourceSchema, type RunInput } from './run-input'
 export type { RunInput } from './run-input'
 
 export const ExecutionContextSchema = z.object({
+  resourceId: z.string().optional(),
+  resourceRevision: z.string().optional(),
+  entryCapability: z.string().optional(),
+  entrySurface: z.enum(['tool', 'command']).optional(),
   conversationId: z.string(),
   rootConversationId: z.string(),
   conversationEpoch: z.number(),
