@@ -4,29 +4,19 @@ import { z } from 'zod'
 import type { HttpServices } from '../http/app'
 import { SettingsEditError } from '../settings/editor'
 import { PluginConfigValidationError } from '../plugins/configuration/values'
-import { ReadConfigSecretsSchema } from '../plugins/configuration/secret-editor'
 import { ControlScopes } from './scopes'
 import { capabilityRows, defaultAccess } from './capabilities'
 import { ControlSnapshotSchema, SaveAccessSchema, SaveLiveFlowSchema } from './contracts'
 import { liveFlow, saveLiveFlow } from './flow'
 import { ControlError } from './error'
-import { ResourceProviderCatalog } from '../resource-providers/catalog'
-import { InvokeResourceSchema, SaveResourceConfigSchema } from '../resource-providers/contracts'
-import { invokeResource } from '../resource-providers/dispatch'
-import { localIdentity } from '../permissions/identity'
-import { pluginOperationId } from '../plugins/identity'
-import { completedPluginResult } from '../plugins/result'
 import { triggerRoles } from '../permissions/capability-policy'
 import { PluginInvocationError } from '../plugins/rpc/peer'
 
 const ScopeQuerySchema = z.object({ scope: z.string().default('global') })
-const ToggleSchema = z.object({ revision: z.string(), enabled: z.boolean() }).strict()
-const DiscoverSchema = z.object({ revision: z.string(), roomId: z.string() }).strict()
 
 export function controlApp(host: HttpServices) {
   const app = new Hono()
   const scopes = new ControlScopes(host)
-  const catalog = new ResourceProviderCatalog(host)
   app.onError((error, c) => {
     if (error instanceof PluginInvocationError && error.failure.code === 'unknown') {
       return c.json({ error: '操作结果尚未确认，请核对原任务或上游状态；不要自动重试。' }, 409)
@@ -109,111 +99,6 @@ export function controlApp(host: HttpServices) {
       return c.json(await liveFlow(scopes, c.req.param('id')!, c.req.param('pluginId')))
     })
   }
-  app.get('/registry', async (c) => {
-    return c.json(await catalog.read())
-  })
-  app.put('/providers/:id/registration', sValidator('json', ToggleSchema), async (c) => {
-    const input = c.req.valid('json')
-    if ((await catalog.read()).revision !== input.revision) {
-      throw new ControlError('提供者目录已变化', 409)
-    }
-    catalog.provider(c.req.param('id'))
-    const plugins = await host.pluginEditor.read()
-    await host.pluginEditor.manage(plugins.revision, c.req.param('id'), { enabled: input.enabled })
-    host.coordinator.events.emit({ type: 'config' })
-    return c.json(await catalog.read())
-  })
-  app.post('/providers/:id/discovery', sValidator('json', DiscoverSchema), async (c) => {
-    const input = c.req.valid('json')
-    const { instance, bundle } = catalog.provider(c.req.param('id'))
-    if ((await catalog.read()).revision !== input.revision) {
-      throw new ControlError('提供者目录已变化', 409)
-    }
-    const operation = bundle.manifest.resourceProvider?.discover
-    if (!operation) {
-      return c.json(await catalog.read())
-    }
-    const service = host.coordinator.plugins
-    if (!instance.enabled || !service?.available()) {
-      throw new ControlError('提供者或执行环境未启用', 409)
-    }
-    const invocation = host.coordinator.jobInvocation(
-      input.roomId,
-      localIdentity('web', 'operator', 'operator', '本地操作员'),
-      '发现资源'
-    )
-    const output = await service.scoped(input.roomId, instance.id, c.req.raw.signal, (signal) => {
-      return service.execute(
-        {
-          ...invocation,
-          origin: 'admin',
-          readOnly: true,
-          services: {
-            authorize: invocation.authorize,
-            history() {
-              return []
-            },
-            async send() {
-              throw new Error('发现操作不能发送消息')
-            }
-          }
-        },
-        pluginOperationId(instance.id, operation),
-        {},
-        crypto.randomUUID(),
-        signal
-      )
-    })
-    await catalog.acceptDiscovery(instance.id, input.revision, completedPluginResult(output).value)
-    host.coordinator.events.emit({ type: 'config' })
-    return c.json(await catalog.read())
-  })
-  for (const subject of ['provider', 'resource'] as const) {
-    app.get('/' + subject + 's/:id/configuration', async (c) => {
-      return c.json(await catalog.configuration(subject, c.req.param('id')!))
-    })
-    app.post(
-      '/' + subject + 's/:id/configuration/secrets',
-      sValidator('json', ReadConfigSecretsSchema),
-      async (c) => {
-        return c.json(await catalog.secrets(subject, c.req.param('id')!, c.req.valid('json')))
-      }
-    )
-    app.put(
-      '/' + subject + 's/:id/configuration',
-      sValidator('json', SaveResourceConfigSchema),
-      async (c) => {
-        const result = await catalog.save(subject, c.req.param('id')!, c.req.valid('json'))
-        host.coordinator.events.emit({ type: 'config' })
-        return c.json(result)
-      }
-    )
-  }
-  app.put('/resources/:id/enabled', sValidator('json', ToggleSchema), async (c) => {
-    const input = c.req.valid('json')
-    const view = await catalog.read()
-    if (view.revision !== input.revision) {
-      throw new ControlError('资源目录已变化', 409)
-    }
-    const selected = view.resources.find((entry) => {
-      return entry.id === c.req.param('id')
-    })
-    if (!selected || selected.base) {
-      throw new ControlError('插件实例资源请使用提供者启停')
-    }
-    const resources = await host.resourceEditor.read()
-    await host.resourceEditor.updateProvided(resources.revision, (records) => {
-      records.find((entry) => {
-        return entry.id === selected.id
-      })!.enabled = input.enabled
-      return records
-    })
-    host.coordinator.events.emit({ type: 'config' })
-    return c.json(await catalog.read())
-  })
-  app.post('/operations/invoke', sValidator('json', InvokeResourceSchema), async (c) => {
-    return c.json(await invokeResource(catalog, c.req.valid('json'), c.req.raw.signal))
-  })
   app.get('/contexts', (c) => {
     const entries = host.coordinator.store
       .listRuns()

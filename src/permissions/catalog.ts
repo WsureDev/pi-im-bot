@@ -44,6 +44,9 @@ export function capabilityIds() {
   })
 }
 export function isActionCapability(id: string) {
+  if (id.startsWith('resource:')) {
+    return true
+  }
   return builtinCapabilities.some((entry) => {
     return entry.kind === 'action' && entry.id === id
   })

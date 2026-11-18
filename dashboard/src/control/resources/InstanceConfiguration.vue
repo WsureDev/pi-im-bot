@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, provide, ref, toRaw } from 'vue'
-import { ResourceConfigViewSchema } from '@core/resource-providers/contracts'
+import { IndependentConfigSchema } from '@core/resource-providers/api-schema'
 import type { z } from 'zod'
 import { request, id } from '@/api/http'
 import {
@@ -14,14 +14,14 @@ import {
 import AstrBotConfig from '@/components/shared/AstrBotConfig.vue'
 import { useDraft } from '@/composables/drafts'
 
-const props = defineProps<{ subject: 'provider' | 'resource'; subjectId: string }>()
+const props = defineProps<{ subjectId: string }>()
 const emit = defineEmits<{ (event: 'close'): void; (event: 'saved'): void }>()
-const view = ref<z.infer<typeof ResourceConfigViewSchema>>()
+const view = ref<z.infer<typeof IndependentConfigSchema>>()
 const draft = ref<ConfigurationDraft>({ values: {}, secrets: {}, overrides: {}, bindings: [] })
 const changes = useDraft(draft)
 const busy = ref(false)
 const error = ref('')
-const path = '/api/control/' + props.subject + 's/' + id(props.subjectId) + '/configuration'
+const path = '/api/resource-providers/instances/' + id(props.subjectId) + '/configuration'
 const metadata = computed(() => {
   if (!view.value) {
     return {}
@@ -48,7 +48,7 @@ provide(ConfigurationKey, {
 async function load() {
   busy.value = true
   try {
-    const next = await request(path, ResourceConfigViewSchema)
+    const next = await request(path, IndependentConfigSchema)
     const nextDraft = createConfigurationDraft(next, await readConfigurationSecrets(path, next))
     view.value = next
     draft.value = nextDraft
@@ -68,7 +68,7 @@ async function save() {
   error.value = ''
   try {
     const payload = configurationPayload(view.value, draft.value)
-    const next = await request(path, ResourceConfigViewSchema, {
+    const next = await request(path, IndependentConfigSchema, {
       method: 'PUT',
       data: {
         revision: payload.revision,
@@ -108,21 +108,21 @@ onMounted(load)
         ><span>{{ view?.title ?? '加载配置' }}</span
         ><v-spacer /><v-btn icon="mdi-close" variant="text" aria-label="关闭资源配置" @click="close"
       /></v-card-title>
-      <v-card-subtitle>由 Provider 插件的声明生成配置表单 · {{ subjectId }}</v-card-subtitle>
+      <v-card-subtitle>由独立 Provider 定义生成配置表单 · {{ subjectId }}</v-card-subtitle>
       <v-progress-linear v-if="busy" indeterminate />
       <v-card-text>
         <v-alert v-if="error" type="error" variant="tonal" class="mb-4"
           >{{ error }} 草稿保留在当前窗口。</v-alert
         >
         <v-alert type="info" variant="tonal" class="mb-4"
-          >保存的配置将供后续真实插件调用使用；本页不会发起业务调用。</v-alert
+          >保存的配置供绑定此资源的调用方使用；本页不会发起业务调用。</v-alert
         >
         <AstrBotConfig
           v-if="view"
           :metadata="metadata"
           metadata-key="resource"
           :iterable="draft.values"
-          :plugin-name="view.ownerPluginId"
+          :plugin-name="view.provider"
           :enable-default-reset="true"
           :disabled="busy"
         />

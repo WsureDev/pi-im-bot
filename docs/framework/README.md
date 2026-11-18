@@ -1,5 +1,7 @@
 # Bot 框架：基础设置、内置能力与扩展资源
 
+独立资源 Provider、x-image / Comfy Gateway 接入、资源与 MCP 转指令的现行规范见 [资源协议与提供者](resource-providers.md)。
+
 插件作者入口：[当前开发手册](../plugins/README.md)。独立迁移工作区为 `../pi-im-bot-plugins`，包含文档快照、公开 SDK 构建别名和首个系统状态迁移插件。
 
 插件产品层已完成首批正式实现，见 [插件中心、配置与发布包](plugin-management.md)。[设计基线](plugin-center.md) 保留对 AstrBot/Koishi 的源码核对及早期原型，未实现部分以阶段记录为准。

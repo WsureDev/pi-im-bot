@@ -1,3 +1,4 @@
+import { compatibleResource } from '../../resource-providers/bindings'
 import type { PluginEditor } from '../editor'
 import type { FrameworkEditor } from '../../settings/editor'
 import { SettingsEditError } from '../../settings/editor'
@@ -222,6 +223,21 @@ export class PluginConfigurationEditor {
             })
             mapping = state.instance.services
           }
+          if (connection.kind === 'resource') {
+            mapping = state.instance.resources
+            choices = state.config.resources.config.providers
+              .filter((entry) => {
+                return compatibleResource(
+                  state.bundle,
+                  connection.alias,
+                  state.config.resources.config,
+                  entry.id
+                )
+              })
+              .map((entry) => {
+                return { id: entry.id, name: entry.name, enabled: entry.enabled }
+              })
+          }
           return {
             alias: connection.alias,
             title: connection.title,
@@ -272,7 +288,8 @@ export class PluginConfigurationEditor {
         for (const [kind, values] of [
           ['service', input.services],
           ['mcp', input.connectors],
-          ['plugin', input.dependencies]
+          ['plugin', input.dependencies],
+          ['resource', input.resources]
         ] as const) {
           if (!values) {
             continue
@@ -284,6 +301,9 @@ export class PluginConfigurationEditor {
           if (kind === 'service') {
             mapping = instance.services
           }
+          if (kind === 'resource') {
+            mapping = instance.resources
+          }
           for (const [alias, value] of Object.entries(values)) {
             if (
               !pluginConnections(state.bundle).some((entry) => {
@@ -293,6 +313,12 @@ export class PluginConfigurationEditor {
               throw new Error('不能修改未声明的服务绑定：' + alias)
             }
             if (value) {
+              if (
+                kind === 'resource' &&
+                !compatibleResource(state.bundle, alias, state.config.resources.config, value)
+              ) {
+                throw new Error('资源不满足插件声明的协议或方法')
+              }
               mapping[alias] = value
             } else {
               delete mapping[alias]

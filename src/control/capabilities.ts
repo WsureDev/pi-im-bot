@@ -1,4 +1,5 @@
 import type { Configuration } from '../config/load'
+import { independentCapabilities } from '../resource-providers/capabilities'
 import { builtinCapabilities } from '../permissions/catalog'
 import { pluginOperationId, pluginCommandId, pluginToolName } from '../plugins/identity'
 import { mcpCapabilityId, mcpToolName } from '../resources/mcp/identity'
@@ -74,6 +75,25 @@ export function capabilityRows(config: Configuration): CapabilityRow[] {
         commandIds: []
       })
     }
+  }
+  for (const capability of independentCapabilities(config.resources.config)) {
+    const command = config.resources.config.resourceCommands.find((entry) => {
+      return capability.id === 'command:resource:' + entry.id
+    })
+    const commands: string[] = []
+    const commandIds: string[] = []
+    if (command) {
+      commands.push('/' + command.name)
+      commandIds.push(capability.id)
+    }
+    rows.push({
+      ...capability,
+      title: capability.name,
+      description: '',
+      pluginId: 'resources',
+      commands,
+      commandIds
+    })
   }
   return rows
 }

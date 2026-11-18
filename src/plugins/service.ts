@@ -506,7 +506,8 @@ export class PluginService {
         return result
       },
       this.managed,
-      action.phase
+      action.phase,
+      this.configuration
     )
     const host = services.bind(entry, context, declared, authorizeGrant)
     const parent = this.calls.getStore()

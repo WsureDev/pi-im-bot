@@ -29,6 +29,12 @@ import { gsviPublic, gsviFromDraft, type GsviDraft } from '../services/gsvi/conf
 import { usesMcpTask, mcpToolAvailable } from './mcp/tasks'
 
 export class ResourceEditor {
+  readResourceProviders() {
+    return this.file()
+  }
+  updateResourceProviders(expected: string, change: (config: ResourcesConfig) => void) {
+    return this.mutate(expected, change)
+  }
   updateProvided(
     expected: string,
     change: (resources: ResourcesConfig['provided']) => ResourcesConfig['provided']

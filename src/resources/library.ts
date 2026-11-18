@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { independentCapabilities } from '../resource-providers/capabilities'
 import { mkdir, rename, unlink } from 'node:fs/promises'
 import { McpCatalogFileSchema, type McpManifest } from './mcp/schema'
 import { ResourcesConfigSchema, type ResourcesConfig } from './schema'
@@ -83,6 +84,9 @@ export class ResourceLibrary {
 
   capabilityIds(settings?: Settings) {
     return [
+      ...independentCapabilities(this.config, true).map((entry) => {
+        return entry.id
+      }),
       ...builtinCapabilities.map((item) => {
         return item.id
       }),
@@ -159,6 +163,13 @@ export class ResourceLibrary {
 
   recognizes(id: string) {
     if (
+      independentCapabilities(this.config).some((entry) => {
+        return entry.id === id
+      })
+    ) {
+      return true
+    }
+    if (
       this.config.plugins.some((plugin) => {
         return (
           id.startsWith(`plugin:${plugin.id}/`) ||
@@ -230,7 +241,7 @@ export class ResourceLibrary {
         })
       ]
     })
-    return [...builtinCapabilities, ...mcp, ...skills, ...plugins]
+    return [...builtinCapabilities, ...mcp, ...skills, ...plugins, ...independentCapabilities(this.config)]
   }
 
   skillManifest(id: string) {

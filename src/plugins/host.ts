@@ -24,6 +24,8 @@ import { SendMessageInputSchema, logicalMessages } from '../domain/logical-messa
 import { sendLogicalSequence } from '../runtime/logical-send'
 import { ResourceHttpRequestSchema, resourceHttpRequest } from '../resource-providers/http'
 import { mergeConfig } from './configuration/values'
+import { registerResourceBindings } from '../resource-providers/plugin-rpc'
+import type { Configuration } from '../config/load'
 
 export function pluginHostServices(
   invocation: PluginInvocation,
@@ -46,9 +48,13 @@ export function pluginHostServices(
     signal: AbortSignal
   ) => Promise<unknown>,
   managed?: PluginManagedServices,
-  phase: PluginAction['phase'] = 'execute'
+  phase: PluginAction['phase'] = 'execute',
+  current: () => Configuration = () => {
+    return invocation.config
+  }
 ) {
   const host = new PluginHostServices()
+  const verifyResources = registerResourceBindings(host, invocation, binding, callId, authorizeGrant, current)
   const http = binding.bundle.manifest.resourceProvider?.http
   if (http) {
     host.register('resource.http', 'resource.http', ResourceHttpRequestSchema, async (input, context) => {
@@ -117,6 +123,7 @@ export function pluginHostServices(
     }
   }
   host.validateResult = () => {
+    verifyResources()
     access()
   }
   host.register('system.status', 'system.status', z.object({}).strict(), async (_input, context) => {

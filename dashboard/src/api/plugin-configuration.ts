@@ -217,7 +217,7 @@ export function configurationPayload(view: PluginConfigView, draft: Configuratio
     return output
   }
   const values = serialize(view.definition ?? {}, draft.values)
-  function bindings(kind: 'service' | 'mcp' | 'plugin') {
+  function bindings(kind: 'service' | 'mcp' | 'plugin' | 'resource') {
     return Object.fromEntries(
       draft.bindings
         .filter((item) => {
@@ -236,6 +236,7 @@ export function configurationPayload(view: PluginConfigView, draft: Configuratio
     secrets,
     services: bindings('service'),
     connectors: bindings('mcp'),
-    dependencies: bindings('plugin')
+    dependencies: bindings('plugin'),
+    resources: bindings('resource')
   }
 }

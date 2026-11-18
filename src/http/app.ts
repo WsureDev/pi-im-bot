@@ -40,6 +40,8 @@ import { PluginConfigValidationError } from '../plugins/configuration/values'
 import type { PluginRuntimeEditor } from '../plugins/runtime/editor'
 import { registerPluginRuntimeRoutes } from './plugin-runtime-routes'
 import { controlApp } from '../control/routes'
+import { independentResourcesApp } from '../resource-providers/routes'
+import { UncertainHostResult } from '../plugins/rpc/uncertain'
 import { rejectPluginConsoleAccess } from './plugin-origin'
 
 export interface HttpServices {
@@ -70,6 +72,9 @@ export function createHttpApp(services: HttpServices) {
   app.use('/api/*', rejectPluginConsoleAccess)
   app.use('/api/*', (c, next) => {
     let maxSize = 128 * 1024
+    if (c.req.path.startsWith('/api/resource-providers')) {
+      maxSize = 1024 * 1024
+    }
     if (c.req.method === 'POST' && c.req.path === '/api/resources/workflows') {
       maxSize = 600 * 1024
     }
@@ -82,6 +87,9 @@ export function createHttpApp(services: HttpServices) {
     return bodyLimit({ maxSize })(c, next)
   })
   app.onError((error, c) => {
+    if (error instanceof UncertainHostResult) {
+      return c.json({ error: error.message, outcome: 'unknown' }, 409)
+    }
     if (error instanceof PluginConfigValidationError) {
       return c.json({ error: error.message, issues: error.issues }, 400)
     }
@@ -96,6 +104,7 @@ export function createHttpApp(services: HttpServices) {
     }
     return c.json({ error: services.configuration().catalog.redact(error.message) }, 400)
   })
+  app.route('/api/resource-providers', independentResourcesApp(services))
   registerProviderRoutes(app, services.providerEditor, () => {
     coordinator.events.emit({ type: 'config' })
   })

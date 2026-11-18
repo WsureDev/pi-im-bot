@@ -1,250 +1,248 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import {
-  ResourceRegistryViewSchema,
-  type ResourceRegistryView,
-  type ResourceOperationView
-} from '@core/resource-providers/contracts'
+import { z } from 'zod'
+import { IndependentRegistrySchema } from '@core/resource-providers/api-schema'
+import type { ResourceMethod } from '@core/resource-providers/protocol'
+import type { ResourceCommand } from '@core/resource-providers/commands/schema'
 import { request, id } from '@/api/http'
 import { useNotifications } from '@/stores/notifications'
-import { useWorkspace } from '@/stores/workspace'
-import ResourceConfigurationDialog from './ResourceConfigurationDialog.vue'
-import OperationDialog from './OperationDialog.vue'
+import InstanceConfiguration from './InstanceConfiguration.vue'
+import MethodDialog from './MethodDialog.vue'
+import CommandEditor from './CommandEditor.vue'
 const notices = useNotifications()
-const workspace = useWorkspace()
-const view = ref<ResourceRegistryView>()
-const busy = ref(false)
-const filter = ref('all')
-const roomId = ref('')
-const config = ref<{ subject: 'provider' | 'resource'; id: string }>()
-const inspecting = ref<{
-  instance: ResourceRegistryView['resources'][number]
-  operation: ResourceOperationView
-}>()
-const rows = computed(() => {
+const view = ref<z.infer<typeof IndependentRegistrySchema>>()
+const creating = ref(false)
+const definitionEditor = ref(false)
+const definitions = ref('')
+const configId = ref('')
+const method = ref<{ resourceId: string; protocol: string; method: ResourceMethod }>()
+const editingCommand = ref<ResourceCommand | null>()
+const form = ref({ id: '', name: '', provider: 'x-image' })
+const base = '/api/resource-providers'
+const providerChoices = computed(() => {
   return (
-    view.value?.resources.filter((entry) => {
-      return filter.value === 'all' || entry.providerId === filter.value
+    view.value?.definitions.map((entry) => {
+      return { title: entry.title, value: entry.id }
     }) ?? []
   )
 })
 async function load() {
-  view.value = await request('/api/control/registry', ResourceRegistryViewSchema)
+  view.value = await request(base, IndependentRegistrySchema)
 }
-async function action(path: string, data: object, method: string) {
-  busy.value = true
-  try {
-    view.value = await request('/api/control/' + path, ResourceRegistryViewSchema, { method, data })
-  } finally {
-    busy.value = false
-  }
+async function change(path: string, data: object, method = 'PUT') {
+  view.value = await request(base + path, IndependentRegistrySchema, {
+    method,
+    data: { ...data, revision: view.value!.revision }
+  })
 }
-function providerState(active: boolean) {
-  if (active) {
-    return '已启用'
-  }
-  return '已停用'
+async function create() {
+  await change('/instances', form.value, 'POST')
+  creating.value = false
+  configId.value = form.value.id
 }
-function color(available: boolean) {
-  if (available) {
-    return 'success'
-  }
-  return 'warning'
+function methods(providerId: string) {
+  const provider = view.value?.definitions.find((entry) => {
+    return entry.id === providerId
+  })
+  return (provider?.mappings ?? []).flatMap((mapping) => {
+    const protocol = view.value?.protocols.find((entry) => {
+      return entry.id === mapping.protocol
+    })
+    const method = protocol?.methods.find((entry) => {
+      return entry.id === mapping.method
+    })
+    if (method && protocol) {
+      return [{ protocol: protocol.id, method }]
+    }
+    return []
+  })
 }
-function status(resource: ResourceRegistryView['resources'][number]) {
-  if (resource.state === 'stale') {
-    return '发现结果失效'
-  }
-  if (resource.available) {
-    return '已就绪'
-  }
-  return '尚未启用'
+function editDefinitions() {
+  definitions.value = JSON.stringify(
+    {
+      protocols: view.value?.protocols.filter((entry) => {
+        return !['pi.image-library@1', 'pi.comfy-gateway@1'].includes(entry.id)
+      }),
+      providers: view.value?.definitions.filter((entry) => {
+        return !['x-image', 'comfy-gateway'].includes(entry.id)
+      })
+    },
+    null,
+    2
+  )
+  definitionEditor.value = true
+}
+async function saveDefinitions() {
+  await change('/definitions', z.record(z.string(), z.unknown()).parse(JSON.parse(definitions.value)))
+  definitionEditor.value = false
+}
+async function saveCommand(command: ResourceCommand) {
+  const commands = [
+    ...view.value!.commands.filter((entry) => {
+      return entry.id !== command.id
+    }),
+    command
+  ]
+  await change('/commands', { commands })
+  editingCommand.value = undefined
+}
+async function removeCommand(commandId: string) {
+  await change('/commands', {
+    commands: view.value!.commands.filter((entry) => {
+      return entry.id !== commandId
+    })
+  })
 }
 onMounted(() => {
   void notices.run(load)
 })
 </script>
 <template>
-  <div class="d-flex align-center flex-wrap ga-3 mb-4">
+  <div class="d-flex align-center flex-wrap ga-3 mb-5">
     <div>
-      <h1 class="text-h5 font-weight-bold">资源与提供者</h1>
-      <p class="text-medium-emphasis mt-1">真实安装插件声明的资源与操作，共用配置和调用规范。</p>
+      <h1 class="text-h5 font-weight-bold">资源提供者</h1>
+      <p class="text-medium-emphasis mt-1">配置服务与数据源，按协议供插件和指令使用。</p>
     </div>
-    <v-spacer /><v-btn variant="text" to="/resources?connections=1">旧连接配置</v-btn
-    ><v-btn variant="text" to="/plugins">安装与管理插件</v-btn
-    ><v-btn :loading="busy" @click="notices.run(load)">刷新目录</v-btn>
+    <v-spacer /><v-btn variant="text" @click="notices.run(load)">刷新</v-btn
+    ><v-btn color="primary" prepend-icon="mdi-plus" @click="creating = true">添加资源</v-btn>
   </div>
-  <v-alert type="info" variant="tonal" class="mb-5"
-    >Bot 不定义资源的业务类型。操作、JSON Schema
-    和配置表单由插件声明；调用在隔离执行器中完成。未声明发现接口的插件直接提供其当前实例。</v-alert
+  <v-alert v-if="view && !view.instances.length" type="info" variant="tonal" class="mb-5"
+    >还没有资源实例。选择 x-image 或 Comfy Gateway 配置连接，也可以导入自己的协议与 Provider 定义。</v-alert
   >
-  <v-select
-    v-model="roomId"
-    :items="workspace.snapshot?.rooms"
-    item-title="name"
-    item-value="id"
-    label="资源发现的授权范围"
-    aria-label="资源发现的授权范围"
-    hint="只有点击“发现实例”才调用插件；配置与目录查看不会请求上游。"
-    persistent-hint
-    class="mb-5"
-  />
-  <h2 class="text-h6 mb-3">资源提供者</h2>
   <v-row class="mb-5"
-    ><v-col v-for="provider in view?.providers" :key="provider.id" cols="12" md="6" lg="4"
-      ><v-card height="100%" class="provider-card" :id="'provider-' + provider.id"
-        ><v-card-title>{{ provider.title }}</v-card-title
-        ><v-card-text
-          ><v-chip :color="color(provider.active && provider.runtimeReady)" size="small">{{
-            providerState(provider.active)
-          }}</v-chip
-          ><v-chip v-if="!provider.runtimeReady" color="warning" size="small" class="ml-2"
-            >执行环境关闭</v-chip
-          >
-          <p class="mt-3">{{ provider.description }}</p>
-          <p class="text-caption text-medium-emphasis mt-3">
-            {{ provider.resourceCount }} 个实例 · {{ provider.operationCount }} 项操作
-          </p></v-card-text
-        ><v-card-actions class="flex-wrap px-4 pb-4">
-          <v-btn
-            v-if="provider.discoverable"
+    ><v-col v-for="instance in view?.instances" :key="instance.id" cols="12" lg="6"
+      ><v-card height="100%">
+        <v-card-title class="d-flex align-center"
+          >{{ instance.name }}<v-spacer /><v-switch
+            :model-value="instance.enabled"
             color="primary"
-            variant="tonal"
-            :disabled="busy || !provider.active || !provider.runtimeReady || !roomId"
-            @click="
-              notices.run(() =>
-                action(
-                  'providers/' + id(provider.id) + '/discovery',
-                  { revision: view!.revision, roomId },
-                  'POST'
-                )
-              )
-            "
-            >发现实例</v-btn
-          ><v-btn color="primary" @click="config = { subject: 'provider', id: provider.id }">连接配置</v-btn
-          ><v-spacer /><v-btn
-            v-if="provider.active"
-            color="warning"
-            :disabled="busy"
-            @click="
-              notices.run(() =>
-                action(
-                  'providers/' + id(provider.id) + '/registration',
-                  { revision: view!.revision, enabled: false },
-                  'PUT'
-                )
-              )
-            "
-            >停用</v-btn
-          ><v-btn
-            v-else
-            color="primary"
-            variant="flat"
-            :disabled="busy"
-            @click="
-              notices.run(() =>
-                action(
-                  'providers/' + id(provider.id) + '/registration',
-                  { revision: view!.revision, enabled: true },
-                  'PUT'
-                )
-              )
-            "
-            >启用</v-btn
-          >
-        </v-card-actions></v-card
-      ></v-col
-    ></v-row
-  >
-  <v-alert v-if="view && !view.providers.length" variant="tonal" type="info" class="mb-4"
-    >尚无提供操作的插件。安装插件后，接口声明会自动出现在这里。</v-alert
-  >
-  <div class="d-flex flex-wrap align-center ga-3 mb-4">
-    <h2 class="text-h6">实例与操作</h2>
-    <v-spacer /><v-select
-      v-model="filter"
-      :items="[
-        { title: '全部提供者', value: 'all' },
-        ...(view?.providers.map((entry) => ({ title: entry.title, value: entry.id })) ?? [])
-      ]"
-      label="按提供者筛选"
-      hide-details
-      style="max-width: 280px"
-    />
-  </div>
-  <v-row
-    ><v-col v-for="resource in rows" :key="resource.id" cols="12" md="6"
-      ><v-card class="resource-card" height="100%" :id="'resource-' + resource.id"
-        ><v-card-title>{{ resource.name }}</v-card-title
-        ><v-card-text
-          ><v-chip :color="color(resource.available)" size="small">{{ status(resource) }}</v-chip>
-          <p class="mt-3">{{ resource.description }}</p>
-          <p class="text-caption text-medium-emphasis mt-2">{{ resource.id }}</p>
-          <v-divider class="my-3" />
-          <div v-for="operation in resource.operations" :key="operation.id" class="operation-row">
-            <div>
-              <strong>{{ operation.title }}</strong>
-              <p class="text-caption text-medium-emphasis">{{ operation.id }} · {{ operation.execution }}</p>
-              <p class="text-body-2 mt-1">{{ operation.description }}</p>
-            </div>
-            <v-btn color="primary" variant="tonal" @click="inspecting = { instance: resource, operation }"
-              >查看与调用</v-btn
-            >
-          </div></v-card-text
-        ><v-card-actions class="px-4 pb-3"
-          ><v-btn v-if="resource.base" @click="config = { subject: 'provider', id: resource.providerId }"
-            >实例配置</v-btn
-          ><v-btn v-else @click="config = { subject: 'resource', id: resource.id }">实例配置</v-btn
-          ><v-spacer /><v-switch
-            v-if="!resource.base"
-            :model-value="resource.enabled"
-            label="启用"
             hide-details
-            :disabled="busy"
+            density="compact"
+            :aria-label="instance.name + '启用'"
             @update:model-value="
               notices.run(() =>
-                action(
-                  'resources/' + id(resource.id) + '/enabled',
-                  { revision: view!.revision, enabled: Boolean($event) },
-                  'PUT'
-                )
+                change('/instances/' + id(instance.id) + '/enabled', { enabled: Boolean($event) })
               )
-            " /></v-card-actions></v-card></v-col
-  ></v-row>
-  <ResourceConfigurationDialog
-    v-if="config"
-    :key="config.id"
-    :subject="config.subject"
-    :subject-id="config.id"
-    @close="config = undefined"
+            "
+        /></v-card-title>
+        <v-card-subtitle>{{ instance.provider }} · {{ instance.id }}</v-card-subtitle>
+        <v-card-text
+          ><p class="mb-3">使用方：{{ instance.consumers.join('、') || '尚无插件绑定' }}</p>
+          <div
+            v-for="entry in methods(instance.provider)"
+            :key="entry.protocol + entry.method.id"
+            class="d-flex align-center ga-3 py-2 border-b"
+          >
+            <div class="flex-grow-1">
+              <strong>{{ entry.method.title }}</strong>
+              <div class="text-caption text-medium-emphasis">
+                {{ entry.protocol }} / {{ entry.method.id }}
+              </div>
+            </div>
+            <v-chip v-if="entry.method.effect === 'write'" size="x-small" color="warning">会修改后端</v-chip>
+            <v-btn
+              variant="tonal"
+              color="primary"
+              size="small"
+              :disabled="!instance.enabled"
+              @click="method = { resourceId: instance.id, protocol: entry.protocol, method: entry.method }"
+              >调用</v-btn
+            >
+          </div> </v-card-text
+        ><v-card-actions
+          ><v-btn color="primary" @click="configId = instance.id">连接配置</v-btn><v-spacer /><v-btn
+            color="error"
+            @click="notices.run(() => change('/instances/' + id(instance.id), {}, 'DELETE'))"
+            >删除</v-btn
+          ></v-card-actions
+        >
+      </v-card></v-col
+    ></v-row
+  >
+  <div class="d-flex align-center mb-3">
+    <div>
+      <h2 class="text-h6">资源与 MCP 转指令</h2>
+      <p class="text-medium-emphasis">选择方法、固定参数和输入映射，直接执行，无需经过模型。</p>
+    </div>
+    <v-spacer /><v-btn color="primary" variant="tonal" @click="editingCommand = null">添加指令</v-btn>
+  </div>
+  <v-card class="mb-6"
+    ><v-list v-if="view?.commands.length"
+      ><v-list-item
+        v-for="command in view.commands"
+        :key="command.id"
+        :title="'/' + command.name"
+        :subtitle="command.description"
+        ><template #append
+          ><v-chip v-if="command.enabled" size="small" color="success">已启用</v-chip
+          ><v-chip v-else size="small">已停用</v-chip
+          ><v-btn variant="text" @click="editingCommand = command">编辑</v-btn
+          ><v-btn variant="text" color="error" @click="notices.run(() => removeCommand(command.id))"
+            >删除</v-btn
+          ></template
+        ></v-list-item
+      ></v-list
+    ><v-card-text v-else>暂无指令映射。添加后可在当前聊天直接使用 /指令名。</v-card-text></v-card
+  >
+  <div class="d-flex align-center mb-3">
+    <h2 class="text-h6">协议与实现</h2>
+    <v-spacer /><v-btn variant="text" @click="editDefinitions">导入或编辑自定义定义</v-btn>
+  </div>
+  <v-card
+    ><v-list
+      ><v-list-item
+        v-for="protocol in view?.protocols"
+        :key="protocol.id"
+        :title="protocol.title + ' · ' + protocol.id"
+        :subtitle="protocol.description"
+        lines="three" /></v-list
+  ></v-card>
+  <v-dialog v-model="creating" max-width="560"
+    ><v-card title="添加资源"
+      ><v-card-text
+        ><v-select v-model="form.provider" :items="providerChoices" label="Provider 实现" /><v-text-field
+          v-model="form.id"
+          label="资源 ID"
+          hint="小写字母开头，可含数字、下划线与连字符" /><v-text-field
+          v-model="form.name"
+          label="资源名称" /></v-card-text
+      ><v-card-actions
+        ><v-spacer /><v-btn @click="creating = false">取消</v-btn
+        ><v-btn color="primary" @click="notices.run(create)">创建并配置</v-btn></v-card-actions
+      ></v-card
+    ></v-dialog
+  >
+  <v-dialog v-model="definitionEditor" max-width="900"
+    ><v-card title="自定义协议与 Provider"
+      ><v-card-text
+        ><p class="mb-3">
+          编辑自定义 protocols 与 providers 数组，内置定义始终保留。协议定义方法语义；Provider 映射 HTTP 或
+          MCP 接口。
+        </p>
+        <v-textarea v-model="definitions" label="定义 JSON" rows="18" spellcheck="false" /></v-card-text
+      ><v-card-actions
+        ><v-spacer /><v-btn @click="definitionEditor = false">取消</v-btn
+        ><v-btn color="primary" @click="notices.run(saveDefinitions)">校验并保存</v-btn></v-card-actions
+      ></v-card
+    ></v-dialog
+  >
+  <InstanceConfiguration
+    v-if="configId"
+    :subject-id="configId"
+    @close="configId = ''"
     @saved="notices.run(load)"
   />
-  <OperationDialog
-    v-if="inspecting && view"
-    :instance="inspecting.instance"
-    :operation="inspecting.operation"
+  <MethodDialog
+    v-if="method && view"
+    :selection="method"
     :revision="view.revision"
-    @close="inspecting = undefined"
+    @close="method = undefined"
+  />
+  <CommandEditor
+    v-if="editingCommand !== undefined && view"
+    :view="view"
+    :command="editingCommand"
+    @close="editingCommand = undefined"
+    @save="notices.run(() => saveCommand($event))"
   />
 </template>
-<style scoped>
-.provider-card {
-  border-top: 3px solid rgb(var(--v-theme-primary));
-}
-.resource-card {
-  border-top: 3px solid rgb(var(--v-theme-success));
-}
-.operation-row {
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 0;
-}
-@media (max-width: 650px) {
-  .operation-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-</style>

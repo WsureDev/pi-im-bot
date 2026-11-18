@@ -54,6 +54,9 @@ import type { Schedule } from '../scheduler/definition'
 import { ScheduleOverlap } from '../scheduler/occurrences'
 import type { PluginService } from '../plugins/service'
 import { findPluginCommand, executePluginCommand, pluginCommandHelp } from '../plugins/commands'
+import { findResourceCommand } from '../resource-providers/commands/catalog'
+import { executeResourceCommand } from '../resource-providers/commands/execute'
+import { resourceCommandCapability } from '../resource-providers/commands/schema'
 import { pluginOperationId } from '../plugins/identity'
 import { pluginPresentation } from '../plugins/hooks/presentation'
 import type { DeliveryPhase } from '../plugins/hooks/points'
@@ -77,6 +80,7 @@ export class Coordinator {
   plugins?: PluginService
   private readonly queues = new Map<string, Promise<void>>()
   private readonly active = new Map<string, ActiveRun>()
+  private readonly resourceCalls = new Map<string, Set<AbortController>>()
   private readonly limiter: RunLimiter
   private scheduler?: Scheduler
   private durable?: DurableAgentRuntime
@@ -494,10 +498,17 @@ export class Coordinator {
         this.configuration().bot.onebot.commandPrefix,
         incoming.address.accountId,
         (text) => {
-          return Boolean(findPluginCommand(this.configuration(), this.effective(room.id).settings, text))
+          return Boolean(
+            findPluginCommand(this.configuration(), this.effective(room.id).settings, text) ||
+              findResourceCommand(this.configuration().resources.config, text)
+          )
         }
       )
-      if (candidate && findPluginCommand(this.configuration(), this.effective(room.id).settings, candidate)) {
+      if (
+        candidate &&
+        (findPluginCommand(this.configuration(), this.effective(room.id).settings, candidate) ||
+          findResourceCommand(this.configuration().resources.config, candidate))
+      ) {
         prompt = candidate
       }
     }
@@ -828,6 +839,16 @@ export class Coordinator {
         pluginHelp = pluginCommandHelp(this.configuration(), effective.settings, authority.capabilities)
       }
       const execution = executionStatus(this.configuration().bot.agent.execution)
+      pluginHelp +=
+        '\n资源与 MCP 指令：\n' +
+        this.configuration()
+          .resources.config.resourceCommands.filter((command) => {
+            return command.enabled && authority.capabilities.includes(resourceCommandCapability(command.id))
+          })
+          .map((command) => {
+            return '/' + command.name + '：' + command.description
+          })
+          .join('\n')
       const status = `会话：${room.name}\n当前对话：${room.currentConversationId}\n人格：${effective.persona.name}\n模式：${room.mode}\n模型组：${effective.settings.preferences.providerGroup}\n执行环境：${execution.message}\n\n/help 查看帮助\n/stop 停止任务\n/new 新建共享对话\n/status 查看状态\n${this.configuration().bot.onebot.commandPrefix} 内容：触发 Agent。普通 QQ 消息只同步到会话。`
       await this.delivery.send(
         room,
@@ -838,6 +859,61 @@ export class Coordinator {
       return null
     }
     const pluginCommand = findPluginCommand(this.configuration(), effective.settings, text)
+    const resourceCommand = findResourceCommand(this.configuration().resources.config, text)
+    if (resourceCommand) {
+      beginDispatch()
+      const invocation = this.jobInvocation(roomId, identity, text)
+      const controller = new AbortController()
+      const calls = this.resourceCalls.get(roomId) ?? new Set<AbortController>()
+      calls.add(controller)
+      this.resourceCalls.set(roomId, calls)
+      const signal = AbortSignal.any([
+        controller.signal,
+        AbortSignal.timeout(effective.settings.behavior.timeoutMs)
+      ])
+      try {
+        if (pluginCommand) {
+          throw new Error('此指令名称与插件冲突，请调整资源指令配置')
+        }
+        const result = await executeResourceCommand(
+          this.configuration,
+          invocation,
+          resourceCommand.command,
+          resourceCommand.text,
+          signal,
+          this.jobs
+        )
+        result.authorize()
+        await this.delivery.send(
+          room,
+          result.summary,
+          undefined,
+          'assistant',
+          'resource-command:' + invocation.runId,
+          {
+            artifactIds: result.artifactIds,
+            authorize: invocation.authorize,
+            beforePart: result.authorize
+          }
+        )
+      } catch (error) {
+        if (!(error instanceof DeliverySuppressed) && !signal.aborted) {
+          await this.delivery.send(
+            room,
+            this.configuration().catalog.redact(String(error)),
+            undefined,
+            'system',
+            'resource-command:' + invocation.runId + ':error'
+          )
+        }
+      } finally {
+        calls.delete(controller)
+        if (!calls.size) {
+          this.resourceCalls.delete(roomId)
+        }
+      }
+      return null
+    }
     if (pluginCommand) {
       beginDispatch()
       const invocation = this.jobInvocation(roomId, identity, text)
@@ -1465,6 +1541,9 @@ export class Coordinator {
   }
 
   stop(roomId: string) {
+    for (const controller of this.resourceCalls.get(roomId) ?? []) {
+      controller.abort(new Error('用户停止资源调用'))
+    }
     for (const outbound of this.store.pendingPresentations(roomId)) {
       if (outbound.render && ['rendering', 'prepared', 'sending'].includes(outbound.state)) {
         let state = outbound.state
@@ -1542,6 +1621,11 @@ export class Coordinator {
 
   async shutdown() {
     this.closing = true
+    for (const calls of this.resourceCalls.values()) {
+      for (const controller of calls) {
+        controller.abort(new Error('服务正在关闭'))
+      }
+    }
     this.inbox.close()
     this.observations?.close()
     for (const room of this.store.listRooms()) {

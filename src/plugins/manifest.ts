@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ResourceDependencySchema } from '../resource-providers/protocol'
 import { PatchPathSchema } from './hooks/path'
 import { ProviderMetadataSchema } from '../resource-providers/definition'
 import { ConfigDefinitionSchema } from './configuration/schema'
@@ -25,7 +26,7 @@ export const PluginJsonSchema = z
 export const PluginGrantSchema = z
   .string()
   .regex(
-    /^(?:system\.status|resource\.http|state\.(?:read|write)|authorization\.inspect|storage\.(?:read|write)|media\.read|history\.read|artifact\.(?:read|write)|delivery\.(?:send|recall)|service:[a-z][a-z0-9_-]{0,31}|connector:[a-z][a-z0-9_-]{0,31}|operation:[a-z][a-z0-9_-]{0,31}\/[a-z][a-z0-9_-]{0,47}|point:[a-z][a-z0-9_.-]{0,160}@\d+)$/u
+    /^(?:system\.status|resource\.http|resource:[a-z][a-z0-9_-]{0,47}|state\.(?:read|write)|authorization\.inspect|storage\.(?:read|write)|media\.read|history\.read|artifact\.(?:read|write)|delivery\.(?:send|recall)|service:[a-z][a-z0-9_-]{0,31}|connector:[a-z][a-z0-9_-]{0,31}|operation:[a-z][a-z0-9_-]{0,31}\/[a-z][a-z0-9_-]{0,47}|point:[a-z][a-z0-9_.-]{0,160}@\d+)$/u
   )
 export const PluginOperationSchema = z.object({
   id: PluginLocalIdSchema,
@@ -120,7 +121,7 @@ export const PluginConnectionSchema = z
   .object({
     alias: PluginIdSchema,
     title: z.string().min(1).max(100),
-    kind: z.enum(['mcp', 'plugin', 'service']),
+    kind: z.enum(['mcp', 'plugin', 'service', 'resource']),
     service: z.enum(['gsvi@1', 'comfy@1']).optional(),
     required: z.boolean().default(true),
     description: z.string().max(1000).default(''),
@@ -150,6 +151,7 @@ export const PluginManifestSchema = z
     configSchema: PluginJsonSchema.optional(),
     configurationProjection: z.literal('gsvi@1').optional(),
     resourceProvider: ProviderMetadataSchema.optional(),
+    resources: z.array(ResourceDependencySchema).max(32).default([]),
     operations: z.array(PluginOperationSchema).max(100).default([]),
     commands: z.array(PluginCommandSchema).max(100).default([]),
     hooks: z.array(PluginHookSchema).max(100).default([]),
@@ -203,6 +205,12 @@ export const PluginManifestSchema = z
     for (const [name, ids] of [
       ['files', value.files],
       [
+        'resource dependencies',
+        value.resources.map((entry) => {
+          return entry.alias
+        })
+      ],
+      [
         'connections',
         value.connections.map((entry) => {
           return entry.alias
@@ -248,6 +256,17 @@ export const PluginManifestSchema = z
       context.addIssue({ code: 'custom', message: 'package-index.json 是框架保留路径' })
     }
     for (const connection of value.connections) {
+      if (
+        connection.kind === 'resource' ||
+        value.resources.some((entry) => {
+          return entry.alias === connection.alias
+        })
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: '独立资源依赖请仅在 resources 中声明，别名不能与旧连接重复'
+        })
+      }
       if (connection.kind === 'service' && !['gsvi@1', 'comfy@1'].includes(connection.service ?? '')) {
         context.addIssue({ code: 'custom', message: '具名服务必须声明已支持的服务契约' })
       }

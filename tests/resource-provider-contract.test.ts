@@ -2,7 +2,6 @@ import { expect, test } from 'bun:test'
 import { pluginFixture } from './plugin-fixture'
 import { ResourceLibrary } from '../src/resources/library'
 import { ResourcesConfigSchema } from '../src/resources/schema'
-import { resourceDirectory } from '../src/resource-providers/catalog'
 import { ProvidedResourceSchema } from '../src/resource-providers/definition'
 import {
   providedResourceRevision,
@@ -56,7 +55,7 @@ test('complex operation parameters remain JSON-editable and primitive defaults r
   expect(view.inputUiSchema.limit.required).toBe(true)
 })
 
-test('actual installed declarations produce provider operations without publishing private configuration', async () => {
+test('legacy plugin-owned resource contexts remain versioned while independent resources replace their directory', async () => {
   const fixture = await pluginFixture()
   try {
     const binding = await fixture.register(
@@ -89,15 +88,9 @@ test('actual installed declarations produce provider operations without publishi
       [],
       [binding.bundle]
     )
-    const directory = resourceDirectory(library, 'revision', true)
-    expect(directory.providers[0].title).toBe('Ordinary API')
-    expect(directory.resources[0].operations[0].id).toBe('echo')
-    expect(directory.resources[0].available).toBe(true)
     expect(() => assertResourceToolExport({ resources: library }, 'plugin:adapter/echo')).toThrow(
       '未声明为模型入口'
     )
-    expect(JSON.stringify(directory)).not.toContain('PRIVATE_')
-    expect(JSON.stringify(directory)).not.toContain('resourceKind')
     const context = { resourceId: resource.id, resourceRevision: providedResourceRevision(resource) }
     expect(() => assertResourceContext({ resources: library }, context)).not.toThrow()
     library.config.provided[0].name = 'new display name'
@@ -106,7 +99,7 @@ test('actual installed declarations produce provider operations without publishi
     library.config.provided[0].configuration.key = 'rotated'
     expect(() => assertResourceContext({ resources: library }, context)).toThrow('资源配置已变化')
     library.config.plugins[0].enabled = false
-    expect(resourceDirectory(library, 'next', true).resources[0].available).toBe(false)
+    expect(() => assertResourceContext({ resources: library }, context)).toThrow()
     expect(ProvidedResourceSchema.safeParse({ ...resource, id: 'other:remote' }).success).toBe(false)
   } finally {
     await fixture.close()

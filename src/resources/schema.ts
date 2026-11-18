@@ -6,10 +6,20 @@ import { SkillConfigSchema } from './skills/schema'
 import { PluginInstanceSchema } from '../plugins/config'
 import { PluginCatalogSourceSchema } from '../plugins/market/contracts'
 import { ProvidedResourceSchema } from '../resource-providers/definition'
+import {
+  ResourceInstanceSchema,
+  ResourceProtocolSchema,
+  ProviderDefinitionSchema
+} from '../resource-providers/protocol'
+import { ResourceCommandSchema } from '../resource-providers/commands/schema'
 
 export const ResourcesConfigSchema = z
   .object({
     version: z.literal(1).default(1),
+    providers: z.array(ResourceInstanceSchema).max(200).default([]),
+    resourceProtocols: z.array(ResourceProtocolSchema).max(100).default([]),
+    providerDefinitions: z.array(ProviderDefinitionSchema).max(100).default([]),
+    resourceCommands: z.array(ResourceCommandSchema).max(200).default([]),
     provided: z.array(ProvidedResourceSchema).max(2000).default([]),
     comfyServices: z.array(ComfyServiceSchema).max(32).default([]),
     workflows: z.array(WorkflowSchema).max(64).default([]),

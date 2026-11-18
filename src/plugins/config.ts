@@ -17,7 +17,8 @@ export const PluginInstanceSchema = z
     grants: z.array(PluginGrantSchema).max(100).default([]),
     services: z.record(PluginIdSchema, PluginIdSchema).default({}),
     connectors: z.record(PluginIdSchema, PluginIdSchema).default({}),
-    dependencies: z.record(PluginIdSchema, PluginIdSchema).default({})
+    dependencies: z.record(PluginIdSchema, PluginIdSchema).default({}),
+    resources: z.record(PluginIdSchema, z.string()).default({})
   })
   .strict()
 export type PluginInstance = z.infer<typeof PluginInstanceSchema>

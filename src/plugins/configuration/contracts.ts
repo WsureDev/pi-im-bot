@@ -47,7 +47,7 @@ export const PluginConfigViewSchema = z.object({
     .array(
       z.object({
         alias: z.string(),
-        kind: z.enum(['mcp', 'plugin', 'service']),
+        kind: z.enum(['mcp', 'plugin', 'service', 'resource']),
         title: z.string(),
         required: z.boolean(),
         value: z.string(),
@@ -72,6 +72,7 @@ export const SavePluginConfigSchema = z
     secrets: z.array(SecretChangeSchema).max(500).default([]),
     services: z.record(z.string(), z.string()).optional(),
     connectors: z.record(z.string(), z.string()).optional(),
-    dependencies: z.record(z.string(), z.string()).optional()
+    dependencies: z.record(z.string(), z.string()).optional(),
+    resources: z.record(z.string(), z.string()).optional()
   })
   .strict()

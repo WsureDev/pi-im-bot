@@ -1,3 +1,4 @@
+import { compatibleResource } from '../resource-providers/bindings'
 import type { ResourceLibrary } from '../resources/library'
 import type { PluginInstance, PluginPackage } from './config'
 import type { PluginGrantSchema } from './manifest'
@@ -16,6 +17,15 @@ export function requestedGrants(bundle: PluginPackage): z.infer<typeof PluginGra
 }
 export function pluginConnections(bundle: PluginPackage) {
   const connections = [...bundle.manifest.connections]
+  for (const dependency of bundle.manifest.resources) {
+    connections.push({
+      alias: dependency.alias,
+      kind: 'resource',
+      title: dependency.alias + '（' + dependency.protocol + '）',
+      description: '',
+      required: dependency.required
+    })
+  }
   for (const grant of requestedGrants(bundle)) {
     let kind: 'mcp' | 'plugin' | 'service' = 'mcp'
     let alias = ''
@@ -81,6 +91,9 @@ export function pluginIssues(instance: PluginInstance, bundle: PluginPackage, li
     if (connection.kind === 'service') {
       mapping = instance.services
     }
+    if (connection.kind === 'resource') {
+      mapping = instance.resources
+    }
     const target = mapping[connection.alias]
     let available = false
     if (connection.kind === 'mcp') {
@@ -93,6 +106,8 @@ export function pluginIssues(instance: PluginInstance, bundle: PluginPackage, li
         [...library.config.services, ...library.config.comfyServices].some((entry) => {
           return entry.id === target && entry.enabled
         })
+    } else if (connection.kind === 'resource') {
+      available = compatibleResource(bundle, connection.alias, library.config, target)
     } else {
       available = library.config.plugins.some((entry) => {
         return entry.id === target && entry.enabled && entry.id !== instance.id
