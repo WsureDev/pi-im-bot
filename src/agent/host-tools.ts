@@ -1,47 +1,10 @@
-import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { BotTool } from '../capabilities/tool'
 import { z } from 'zod'
 import { obj, int, str, opt, arr } from '@earendil-works/pi-schema'
-import type { ChatMessage } from '../domain/message'
-import type { projectHistory } from '../messages/projection'
-import { createJobTools, type JobToolServices } from '../jobs/tools'
-import { createScheduleTools, type ScheduleToolServices } from './schedule-tools'
-import type { Message } from '@earendil-works/pi-ai'
-import type { MediaToolServices } from '../media/tool'
-import type { PluginService } from '../plugins/service'
+import { createJobTools } from '../jobs/tools'
+import { createScheduleTools } from './schedule-tools'
 import { chatSendTool } from './chat-send'
-
-export interface HostToolServices {
-  mediaSources?: Set<string>
-  plugins?: PluginService
-  recall?(messageId: string, delayMs: number): Promise<{ taskId: number }>
-  history(limit: number): ReturnType<typeof projectHistory>
-  send(
-    text: string,
-    callId?: string,
-    artifactIds?: string[],
-    beforePart?: () => void,
-    lifetime?: { signal: AbortSignal; deadlineAt?: number }
-  ): Promise<ChatMessage>
-  present?(
-    text: string,
-    callId: string,
-    artifactIds: string[]
-  ): Promise<{
-    delivered: boolean
-    messageId?: string
-    jobId?: string
-    admissionUnknown?: boolean
-    outboundId?: string
-  }>
-  assertActive?(): void
-  authorize(capability: string, surface?: 'tool'): void
-  schedules?: ScheduleToolServices
-  jobs?: JobToolServices
-  media?: MediaToolServices
-  projectModelHistory?<T extends AgentMessage>(messages: readonly T[]): Promise<T[]>
-  projectContext?(messages: readonly Message[]): Promise<Message[]>
-}
+import type { HostToolServices } from './services'
 
 const HistoryInputSchema = z.object({ limit: z.number().int().min(1).max(100) })
 const SendInputSchema = z

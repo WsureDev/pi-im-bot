@@ -15,6 +15,8 @@ export const ReceiptSchema = z.object({
   workflowDigest: z.string(),
   parametersDigest: z.string(),
   outputs: z.array(z.string()),
+  firstImage: z.boolean().optional(),
+  managedJob: z.boolean().optional(),
   status: ComfyItemSchema.shape.status,
   promptId: z.string().optional(),
   requestArtifactId: z.uuid(),
@@ -23,7 +25,7 @@ export const ReceiptSchema = z.object({
   dispatched: z.boolean(),
   cancelDispatched: z.boolean().default(false),
   createdAt: z.number(),
-  error: z.string().max(300).optional()
+  error: z.string().max(2000).optional()
 })
 export type Receipt = z.infer<typeof ReceiptSchema>
 export const ComfyReceipts = defineDocFamily<{ value: Receipt | null }, null>({

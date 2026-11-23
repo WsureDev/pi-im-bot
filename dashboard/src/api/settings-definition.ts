@@ -88,6 +88,29 @@ export function settingsDefinition(library: FrameworkEditorState, snapshot: Snap
         }),
         scope
       },
+      visionProvider: {
+        type: 'string',
+        description: '默认图片描述模型',
+        hint: '用于未单独选择识图模型的插件；请选择支持图片的模型，留空使用会话模型组。',
+        default: '',
+        options: [
+          '',
+          ...snapshot.providers.providers.flatMap((provider) => {
+            return provider.models.map((model) => {
+              return provider.id + '/' + model
+            })
+          })
+        ],
+        labels: [
+          '使用会话模型组',
+          ...snapshot.providers.providers.flatMap((provider) => {
+            return provider.models.map((model) => {
+              return provider.id + ' / ' + model
+            })
+          })
+        ],
+        scope
+      },
       replyStyle: { type: 'text', description: '回复偏好', default: '', scope }
     }
   })

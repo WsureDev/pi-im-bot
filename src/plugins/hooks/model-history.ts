@@ -1,9 +1,10 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import { z } from 'zod'
-import type { PluginService } from '../service'
+import type { PluginExecution } from '../execution'
 import type { PluginInvocation } from '../invocation'
 import { collectPluginPoint } from './dispatch'
-import { historyProjectionNode } from './points'
+import { historyProjectionNode, assistantHistoryNode } from './points'
+import { transformPluginPoint } from './transform'
 import { pluginHookId, pluginToolName, pluginOperationId } from '../identity'
 const JobCallSchema = z
   .object({
@@ -16,7 +17,7 @@ const HiddenArguments = {
   modelProjection: 'arguments withheld by this scope prompt-history policy; immutable audit retained'
 }
 export async function projectPluginHistory<T extends AgentMessage>(
-  service: PluginService | undefined,
+  service: PluginExecution | undefined,
   invocation: PluginInvocation,
   messages: readonly T[],
   signal: AbortSignal
@@ -35,7 +36,17 @@ export async function projectPluginHistory<T extends AgentMessage>(
         pluginHookId(entry.instanceId, entry.hook.id)
       )
     })
-  if (!entries.length) {
+  const textEntries = registry
+    .plan(assistantHistoryNode.id, {
+      channel: invocation.room.address.channel,
+      origin: invocation.input.source
+    })
+    .filter((entry) => {
+      return invocation.input.context.authority.capabilities.includes(
+        pluginHookId(entry.instanceId, entry.hook.id)
+      )
+    })
+  if (!entries.length && !textEntries.length) {
     return [...messages]
   }
   const choices = await collectPluginPoint(
@@ -74,34 +85,61 @@ export async function projectPluginHistory<T extends AgentMessage>(
       }
     }
   }
-  if (!names.size) {
+  if (!names.size && !textEntries.length) {
     return [...messages]
   }
-  return messages.map((message) => {
-    if (message.role !== 'assistant') {
-      return message
-    }
-    let changed = false
-    const content = message.content.map((part) => {
-      if (part.type !== 'toolCall') {
-        return part
+  return Promise.all(
+    messages.map(async (message) => {
+      if (message.role !== 'assistant') {
+        return message
       }
-      if (names.has(part.name)) {
-        changed = true
-        return { ...part, arguments: { ...HiddenArguments } }
+      let changed = false
+      const content = await Promise.all(
+        message.content.map(async (part) => {
+          if (part.type === 'text' && textEntries.length) {
+            const projected = await transformPluginPoint({
+              registry,
+              point: assistantHistoryNode.id,
+              selector: { channel: invocation.room.address.channel, origin: invocation.input.source },
+              value: { text: part.text },
+              schema: assistantHistoryNode.input,
+              handlers: textEntries,
+              signal,
+              invoke(entry, value, _revision, childSignal) {
+                return service.hook(
+                  invocation,
+                  registry,
+                  entry,
+                  value,
+                  'history-text:' + message.timestamp,
+                  childSignal
+                )
+              }
+            })
+            changed ||= projected.text !== part.text
+            return { ...part, text: projected.text }
+          }
+          if (part.type !== 'toolCall') {
+            return part
+          }
+          if (names.has(part.name)) {
+            changed = true
+            return { ...part, arguments: { ...HiddenArguments } }
+          }
+          if (part.name === 'start_job') {
+            const spec = JobCallSchema.safeParse(part.arguments)
+            if (spec.success && capabilities.has(spec.data.capability)) {
+              changed = true
+              return { ...part, arguments: { ...part.arguments, arguments: { ...HiddenArguments } } }
+            }
+          }
+          return part
+        })
+      )
+      if (!changed) {
+        return message
       }
-      if (part.name === 'start_job') {
-        const spec = JobCallSchema.safeParse(part.arguments)
-        if (spec.success && capabilities.has(spec.data.capability)) {
-          changed = true
-          return { ...part, arguments: { ...part.arguments, arguments: { ...HiddenArguments } } }
-        }
-      }
-      return part
+      return Object.assign({}, message, { content })
     })
-    if (!changed) {
-      return message
-    }
-    return Object.assign({}, message, { content })
-  })
+  )
 }

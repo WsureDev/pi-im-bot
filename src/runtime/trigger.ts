@@ -1,7 +1,7 @@
 import { requestedSkill } from '../resources/skills/invocation'
 import { isJobCommand, isJobControlCommand } from '../jobs/commands'
 
-const COMMANDS = new Set(['/help', '/status', '/stop', '/new', '/skills'])
+const COMMANDS = new Set(['/help', '/status', '/botstatus', '/stop', '/new', '/skills'])
 
 export function isControlCommand(text: string) {
   return COMMANDS.has(text.trim()) || isJobControlCommand(text)

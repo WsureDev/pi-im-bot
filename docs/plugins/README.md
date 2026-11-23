@@ -2,7 +2,7 @@
 
 2026-11-18 新增[独立资源依赖与 SDK](resource-providers.md)：插件可以绑定符合协议的 x-image、Comfy Gateway 或自定义服务实例；资源的配置和生命周期独立于消费插件。资源方法与 MCP Tool 也可在资源页显式配置为直接指令。
 
-适用范围：当前 `apiVersion: 1`、Bun 1.4.4、Pi 1.5.0 的实际实现。更新日期：2026-11-13。这里记录已经提供的接口；设计提案与未来能力不作为可调用 API。
+适用范围：当前 `apiVersion: 1`、Bun 1.4.4、Pi 1.5.2 的实际实现。更新日期：2026-11-21。这里记录已经提供的接口；设计提案与未来能力不作为可调用 API。
 
 新配置的插件执行默认关闭；这是默认值，并非部署状态。2026-11-12 的部署记录已确认启用，2026-11-13 只读 `GET /api/plugins/observers` 再次返回 enabled:true。当前开关和实例阻塞原因看在线观察/运行环境诊断；普通开发、构建与打包不会改变它们。
 
@@ -55,7 +55,8 @@ foundation A 新增 [具名 GSVI 与入站媒体](managed-media-and-speech.md)�
 - 可用统一 Job 承接后台操作及 `pending` 句柄，不必持有主会话等待。
 - 文件与任意业务代码只在插件 Worker 内运行；Worker 网络关闭，代码只读，私有数据有容量上限。
 - 配置编辑来自静态 `_conf_schema.json`，资源选择器只返回引用 ID，不等于提供相应服务调用。
-- 未提供：插件自注册 Cron、任意跨群发送、直接调用任意 Provider、任意 HTTP/通用语音连接器（已提供固定 GSVI 服务）、HTML 渲染服务、任意宿主 Shell/文件系统、配置型文件上传、通用数据迁移或初始化/销毁生命周期 API。
+- 已提供：[有界 HTML 渲染、图片配置上传、两阶段受管模型分析、声明目标提醒与实例维护定时器](system-status-parity.md)。文件、模型、交付分别受 grant 与所属实例约束；定时器由宿主管理，插件 import 不启动守护任务。
+- 未提供：插件自注册任意 Cron、任意地址跨群发送、直接取得 Provider 凭据、任意宿主 Shell/文件系统、任意文件类型的配置上传、通用数据迁移或任意初始化/销毁回调。资源连接器与 HTTP 端口按各自声明协议使用。
 
 插件执行环境在「插件 → 运行环境」统一检测和配置，保存后应用。实例配置只包含 schema 与声明的服务绑定；账号、群、conversation 覆盖不混入实例编辑入口。运行环境和所需 grant 未满足时，页面显示对应阻塞原因及操作。
 
@@ -66,3 +67,5 @@ foundation A 新增 [具名 GSVI 与入站媒体](managed-media-and-speech.md)�
 具名 comfy@1、受管模板、CAS 状态、逐 item 恢复/精确取消、typed forward 与模型参数投影见 [ComfyUI 公共接口](managed-comfy.md)。
 
 GSVI 0.3 的原字段、嵌套预设、同页凭据编辑与刷新缓存契约见 [GSVI 原生配置页](gsvi-native-configuration.md)。
+
+2026-11-18：GSVI/ComfyUI 全量资源移植新增[独立资源原生接口](resource-plugin-ports.md)，包含完整配置投影、动态选项、受管状态、单请求模型资源、按段交付及助手历史文字投影。旧文档中的具名 service 接口与旧插件迁移限制不代表新资源插件的能力。

@@ -10,7 +10,7 @@ import { ProviderCatalog } from '../src/providers/catalog'
 import { ProvidersConfigSchema } from '../src/providers/schema'
 import { BotConfigSchema } from '../src/config/schema'
 import { RoomSchema } from '../src/domain/message'
-import { runPi } from '../src/agent/pi-runner'
+import { runAgent } from './agent-runtime'
 import { responsesReply } from './responses-fixture'
 import { agentInput, testFramework, testResources } from './agent-input'
 
@@ -120,8 +120,8 @@ test('restored sessions cannot read, write or execute on the host, while scoped 
     ],
     groups: [{ id: 'main', candidates: [{ provider: 'test', model: 'test-model' }] }]
   })
-  const catalog = await ProviderCatalog.create(providerConfig, root)
-  const result = await runPi(
+  const catalog = await ProviderCatalog.create(providerConfig)
+  const result = await runAgent(
     {
       bot: BotConfigSchema.parse({}),
       catalog,
@@ -165,7 +165,7 @@ test('restored sessions cannot read, write or execute on the host, while scoped 
   for (const name of ['read', 'write', 'bash', 'codemode']) {
     expect(
       toolResults.some((result) => {
-        return result.includes(`Tool ${name} not found`)
+        return result.startsWith(`失败 ${name}:`)
       })
     ).toBe(true)
   }

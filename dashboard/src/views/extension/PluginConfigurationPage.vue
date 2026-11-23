@@ -10,6 +10,7 @@ import { containsConfigSecrets } from '@core/plugins/configuration/values'
 import { request, id, ApiError } from '@/api/http'
 import {
   ConfigurationKey,
+  PluginConfigIdKey,
   createConfigurationDraft,
   readConfigurationSecrets,
   configurationDefinition,
@@ -49,6 +50,7 @@ function canOverride(field: ConfigField) {
       !containsConfigSecrets({ field })
   )
 }
+provide(PluginConfigIdKey, () => props.pluginId)
 provide(ConfigurationKey, {
   get view() {
     return view.value!

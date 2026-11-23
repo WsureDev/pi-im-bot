@@ -3,7 +3,7 @@ import type { Configuration } from '../../config/load'
 import type { Room } from '../../domain/message'
 import type { PreparedRunInput } from '../../domain/run'
 import type { AgentCallbacks } from '../events'
-import type { HostToolServices } from '../host-tools'
+import type { HostToolServices } from '../services'
 import type { createToolkit } from '../toolkit'
 import type { runProvider } from './model'
 
@@ -18,5 +18,4 @@ export interface DurableBinding {
   toolkit: ReturnType<typeof createToolkit>
   provider: ReturnType<typeof runProvider>
   extension: Extension
-  modelKey: string
 }

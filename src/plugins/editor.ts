@@ -16,7 +16,7 @@ import {
 import { importPlugin } from './package'
 import { pluginPaths } from './runtime/config'
 import type { PluginPackage } from './config'
-import { fillConfigDefaults } from './configuration/values'
+import { fillConfigDefaults, validateConfig, validateConfigReadonly } from './configuration/values'
 import { pluginIssues, resolvePluginConnections } from './management'
 import type { ManagePluginSchema } from './contracts'
 import {
@@ -29,9 +29,41 @@ import {
 import { GsviConfigurationRefresh } from '../services/gsvi/plugin-config/refresh'
 import { gsviPageValues, saveGsviPage } from '../services/gsvi/plugin-config/values'
 import type { z } from 'zod'
+import { ResourceOptions } from '../resource-providers/options'
+import { saveProjectedResources } from '../resource-providers/projection'
+import { writeConfigPath, resourceWorkerDefinition } from '../resource-providers/projection'
 
 export class PluginEditor {
+  readonly resourceOptions: import('../resource-providers/options').ResourceOptions
   readonly gsviRefresh: GsviConfigurationRefresh
+  async patchOwnSettings(id: string, release: string, patch: Record<string, unknown>) {
+    const view = await this.read()
+    await this.mutate(view.revision, (config) => {
+      const bundle = this.configuration().resources.pluginPackage(id)
+      const instance = config.plugins.find((entry) => {
+        return entry.id === id
+      })
+      if (!bundle || !instance || bundle.revision !== release) {
+        throw new Error('插件配置版本已变化')
+      }
+      const values = structuredClone(instance.settings)
+      for (const [path, value] of Object.entries(patch)) {
+        if (
+          !bundle.manifest.mutableConfigurationPaths.some((allowed) => {
+            return path === allowed || path.startsWith(allowed + '.')
+          })
+        ) {
+          throw new Error('插件未声明可写配置路径')
+        }
+        writeConfigPath(values, path, value)
+      }
+      const definition = resourceWorkerDefinition(bundle) ?? {}
+      validateConfig(definition, values)
+      validateConfigReadonly(definition, instance.settings, values)
+      instance.settings = values
+    })
+    this.resourceOptions.request(id)
+  }
   constructor(
     readonly configuration: () => Configuration,
     private readonly apply: (resources: ResourceLibrary) => void,
@@ -40,6 +72,7 @@ export class PluginEditor {
     private readonly usage: (id: string) => string[]
   ) {
     this.gsviRefresh = new GsviConfigurationRefresh(configuration)
+    this.resourceOptions = new ResourceOptions(configuration)
   }
 
   private async file() {
@@ -159,6 +192,9 @@ export class PluginEditor {
       if (!instance) {
         throw new Error('插件实例不存在')
       }
+      if (update.enabled === true && !instance.enabled) {
+        instance.activation = crypto.randomUUID()
+      }
       Object.assign(instance, update)
       const bundle = this.configuration().resources.pluginPackage(id)
       if (bundle) {
@@ -166,9 +202,10 @@ export class PluginEditor {
       }
     })
     const bundle = this.configuration().resources.pluginPackage(id)
-    if (bundle && usesGsviConfiguration(bundle) && update.enabled !== undefined) {
+    if (bundle && update.enabled !== undefined) {
       return operation.then(async () => {
         this.gsviRefresh.request(id)
+        this.resourceOptions.request(id)
         return this.read()
       })
     }
@@ -177,6 +214,7 @@ export class PluginEditor {
 
   async initializeGsviConfiguration() {
     for (const instance of this.configuration().resources.config.plugins) {
+      this.resourceOptions.request(instance.id)
       const bundle = this.configuration().resources.pluginPackage(instance.id)
       if (bundle && usesGsviConfiguration(bundle) && instance.enabled) {
         this.gsviRefresh.request(instance.id)
@@ -200,9 +238,10 @@ export class PluginEditor {
         return item.id !== id
       })
     })
-    if (bundle && usesGsviConfiguration(bundle)) {
+    if (bundle) {
       return operation.then((view) => {
         this.gsviRefresh.request(id)
+        this.resourceOptions.request(id)
         return view
       })
     }
@@ -244,11 +283,21 @@ export class PluginEditor {
           throw new Error('插件实例不存在')
         }
         instance.release = bundle.revision
+        instance.activation = crypto.randomUUID()
         if (sourceDir) {
           instance.sourceDir = sourceDir
         }
         if (bundle.configuration) {
           let values = instance.settings
+          if (
+            previous &&
+            usesGsviConfiguration(previous) &&
+            bundle.manifest.resources.some((entry) => {
+              return Boolean(entry.configurationProjection)
+            })
+          ) {
+            values = gsviPageValues(config, instance, previous)
+          }
           if (usesGsviConfiguration(bundle)) {
             values = migrateGsviFlat(values)
           } else if (
@@ -261,6 +310,13 @@ export class PluginEditor {
             values = restoreGsviFlat(values)
           }
           instance.settings = gsviBusinessValues(bundle, fillConfigDefaults(bundle.configuration, values))
+          if (
+            bundle.manifest.resources.some((entry) => {
+              return Boolean(entry.configurationProjection)
+            })
+          ) {
+            saveProjectedResources(config, instance, bundle, instance.settings)
+          }
           if (usesGsviConfiguration(bundle)) {
             saveGsviPage(config, instance, bundle, gsviPageValues(config, instance, bundle))
           }
@@ -269,9 +325,10 @@ export class PluginEditor {
       },
       bundle
     )
-    if (usesGsviConfiguration(bundle) || (previous && usesGsviConfiguration(previous))) {
+    if (bundle) {
       return operation.then((view) => {
         this.gsviRefresh.request(id)
+        this.resourceOptions.request(id)
         return view
       })
     }

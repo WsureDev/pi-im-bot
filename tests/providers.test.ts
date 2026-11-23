@@ -11,7 +11,7 @@ import { createResponsesStream, type ProviderAttempt } from '../src/providers/re
 import { mergeBody, mergeHeaders } from '../src/providers/body'
 import { BotConfigSchema } from '../src/config/schema'
 import { RoomSchema } from '../src/domain/message'
-import { runPi } from '../src/agent/pi-runner'
+import { runAgent } from './agent-runtime'
 import { agentInput, testFramework, testResources } from './agent-input'
 import { responsesReply } from './responses-fixture'
 
@@ -66,7 +66,7 @@ async function setup(handler: (request: Request) => Response | Promise<Response>
       }
     ]
   })
-  const catalog = await ProviderCatalog.create(config, directory)
+  const catalog = await ProviderCatalog.create(config)
   return { catalog, directory }
 }
 
@@ -195,7 +195,7 @@ describe('Responses configuration and native Pi transport', () => {
       createdAt: Date.now(),
       updatedAt: Date.now()
     })
-    const text = await runPi(
+    const text = await runAgent(
       {
         bot,
         catalog,

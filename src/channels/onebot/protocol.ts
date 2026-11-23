@@ -1,16 +1,16 @@
 import { z } from 'zod'
 import { parseOneBotContent } from './content'
 
-const IdSchema = z.union([z.string(), z.number()]).transform(String)
+export const OneBotIdSchema = z.union([z.string().min(1), z.number().int().safe()]).transform(String)
 export const OneBotSegmentSchema = z.object({ type: z.string(), data: z.record(z.string(), z.unknown()) })
 export const OneBotMessageSchema = z.object({
   post_type: z.enum(['message', 'message_sent']),
   message_type: z.enum(['group', 'private']),
-  self_id: IdSchema,
-  user_id: IdSchema,
-  group_id: IdSchema.optional(),
+  self_id: OneBotIdSchema,
+  user_id: OneBotIdSchema,
+  group_id: OneBotIdSchema.optional(),
   group_name: z.string().optional(),
-  message_id: IdSchema,
+  message_id: OneBotIdSchema,
   time: z.number().optional(),
   message: z.union([z.string(), z.array(OneBotSegmentSchema)]),
   sender: z

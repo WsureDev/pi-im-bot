@@ -13,7 +13,9 @@ bun run start
 
 默认监听 `0.0.0.0:19335`，本机访问示例为 `http://localhost:19335`。局域网使用部署主机的可达地址直接访问。配置入口和生效方式见 [部署配置](docs/configuration.md)。前端采用独立 `dashboard/` 中的 Vue 3、Vuetify、Pinia、Vue Router 和 Vite，基于固定版本的 AstrBot Dashboard。服务启动只读取已构建的 `dist/`，首次运行前必须构建；`BOT_WEB_DIR` 可指定独立静态目录。
 
-开发后端运行 `bun run dev`，前端热更新运行 `bun run dev:dashboard`。Vite 的 `/api` 和 WebSocket 默认代理到 `http://127.0.0.1:19335`，可用 `BOT_API_URL` 指向独立测试后端。构建、上游来源及迁移验收见 [Dashboard 说明](dashboard/README.md)。
+开发时运行 `bun run dev` 同时启动后端和前端热更新；退出时共同关闭，任一服务退出也会停止另一服务。单独开发后端使用 `bun run dev:bot`，前端使用 `bun run dev:dashboard`。Vite 的 `/api` 和 WebSocket 默认代理到 `http://127.0.0.1:19335`，可用 `BOT_API_URL` 指向独立测试后端。构建、上游来源及迁移验收见 [Dashboard 说明](dashboard/README.md)。
+
+执行内核、领域接口与 OneBot 契约的改进方案见 [Improve 实施记录](docs/framework/improve-implementation.md)。
 
 当前主机也可直接使用项目内的 Bun：
 
@@ -196,7 +198,7 @@ Provider 与模型都支持 `headers` 和 `body`：
 
 在 `config/bot.json` 中配置：
 
-~~~json
+```json
 {
   "agent": {
     "execution": {
@@ -210,7 +212,7 @@ Provider 与模型都支持 `headers` 和 `body`：
     }
   }
 }
-~~~
+```
 
 也可用 `apiKey` 字段保存 Bay 凭据，配置文件已忽略版本控制；凭据不传入容器或网页。使用现有含 Node.js 的 Ship 镜像，文件操作辅助代码在容器内执行。Bot 在 Docker 中部署时，endpoint 使用容器可达的 Bay 地址，不使用容器自身的 127.0.0.1，也不需要挂载 Docker socket。
 

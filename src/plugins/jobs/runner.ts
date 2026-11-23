@@ -41,7 +41,7 @@ export class PluginJobRunner {
     let dispatched = false
     try {
       value.invocation.services.authorize(value.entry.capabilityId)
-      for (const action of value.entry.operation.actions) {
+      for (const action of pluginActionCapabilities(value.entry)) {
         value.invocation.services.authorize(action)
       }
       value.plugins.validateDelivery(
@@ -117,6 +117,41 @@ export class PluginJobRunner {
     value: PluginJobContext,
     outcome: PluginOperationOutcome
   ) {
+    let messages:
+      | NonNullable<Extract<PluginOperationOutcome, { status: 'done' }>['result']['messages']>
+      | undefined
+    if (outcome.status === 'pending') {
+      messages = outcome.progress
+    }
+    if (outcome.status === 'done' && outcome.result.format !== 'forward') {
+      messages = outcome.result.messages
+    }
+    if (messages?.length) {
+      const coordinator = this.service.coordinator
+      const id =
+        value.value.presentation?.outboundId ?? 'job:' + value.job.id + ':' + value.value.revision + ':result'
+      const validate = async () => {
+        runtime.signal.throwIfAborted()
+        const current = await this.service.repository.get(value.job.id)
+        if (
+          current.currentRevision !== value.value.revision ||
+          current.revisions[String(current.currentRevision)].cancelRequested
+        ) {
+          throw new Error('任务进度交付已取消')
+        }
+        value.invocation.services.authorize(value.entry.capabilityId)
+        for (const capability of pluginActionCapabilities(value.entry)) {
+          value.invocation.services.authorize(capability)
+        }
+      }
+      await coordinator.delivery.progressMessages(
+        coordinator.requireRoom(value.job.roomId),
+        messages,
+        value.value.runId,
+        id,
+        { beforePart: validate, authorize: value.invocation.services.authorize }
+      )
+    }
     if (outcome.status !== 'pending') {
       await finishExternal(this.service, task, runtime, context, await pluginJobOutcome(value, outcome))
       return
@@ -131,6 +166,8 @@ export class PluginJobRunner {
       await savePluginExecution(tx, value.key, value.execution)
       await this.service.repository.change(tx, value.job.id, value.value.revision, (current) => {
         current.state = 'waiting_external'
+        current.operationCheckpoint = true
+        current.progressMessage = outcome.message
         current.external = {
           status: 'working',
           hasReceipt: true,
@@ -183,7 +220,7 @@ export class PluginJobRunner {
         throw new Error('插件执行后端已关闭')
       }
       value.invocation.services.authorize(value.entry.capabilityId)
-      for (const action of value.entry.operation.actions) {
+      for (const action of pluginActionCapabilities(value.entry)) {
         value.invocation.services.authorize(action)
       }
       value.plugins.validateDelivery(
@@ -390,3 +427,4 @@ export class PluginJobRunner {
     return jobSummary(updated)
   }
 }
+import { pluginActionCapabilities } from '../action-capabilities'

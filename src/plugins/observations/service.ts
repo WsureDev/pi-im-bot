@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import { defineTask, defineExtension, type TaskId } from '@earendil-works/pi-durable'
 import type { Coordinator } from '../../runtime/coordinator'
-import type { DurableAgentRuntime } from '../../agent/durable/runtime'
+import type { AgentRuntime } from '../../agent/runtime'
 import type { Configuration } from '../../config/load'
 import type { Room } from '../../domain/message'
 import type { PreparedRunInput } from '../../domain/run'
@@ -24,7 +24,7 @@ export class PluginObservations {
 
   constructor(
     private readonly coordinator: Coordinator,
-    private readonly runtime: DurableAgentRuntime
+    private readonly runtime: AgentRuntime
   ) {
     const worker = new ObservationWorker(
       coordinator,
@@ -211,7 +211,7 @@ export class PluginObservations {
 
   private async admit(
     input: ObserverTaskInput,
-    conversation: Awaited<ReturnType<DurableAgentRuntime['ensureConversation']>>
+    conversation: Awaited<ReturnType<AgentRuntime['ensureConversation']>>
   ) {
     return this.runtime.native.commit(async (tx) => {
       const index = await tx.doc(ObserverIndex)

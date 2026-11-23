@@ -7,7 +7,13 @@ export const ArtifactAccessSchema = z.object({
     .object({
       instanceId: z.string(),
       grants: z.array(z.string()).max(32),
-      services: z.record(z.string(), z.object({ id: z.string(), revision: z.string() })).default({})
+      services: z.record(z.string(), z.object({ id: z.string(), revision: z.string() })).default({}),
+      resources: z
+        .record(
+          z.string(),
+          z.object({ id: z.string(), protocol: z.string(), method: z.string(), revision: z.string() })
+        )
+        .optional()
     })
     .optional()
 })

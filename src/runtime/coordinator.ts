@@ -11,12 +11,10 @@ import {
 import type { Run, RunInput, PreparedRunInput, Trace, ExecutionContext } from '../domain/run'
 import { BACKGROUND_CONTEXT, withAbortSignal, awaitWithContext } from '@earendil-works/chord/context'
 import { executeRun } from './execute-run'
-import { runPi } from '../agent/pi-runner'
-import type { HostToolServices } from '../agent/host-tools'
+import type { HostToolServices } from '../agent/services'
 import type { StateStore } from '../storage/state'
 import { DeliverySuppressed, DeliveryAdmissionUnknown, type DeliveryService } from './delivery'
 import type { EventHub } from './events'
-import { RunLimiter } from './limiter'
 import type { Scheduler } from '../scheduler/service'
 import type { ScheduleToolServices } from '../agent/schedule-tools'
 import { executionStatus } from '../execution/config'
@@ -33,12 +31,11 @@ import { projectHistory, projectOutput } from '../messages/projection'
 import { freezeSnapshot } from './snapshot'
 import { requestedSkill } from '../resources/skills/invocation'
 import { skillCapabilityId } from '../resources/skills/package'
-import type { DurableAgentRuntime } from '../agent/durable/runtime'
+import type { AgentRuntime } from '../agent/runtime'
 import { ConfigurationSnapshots } from '../config/snapshots'
 import { runObserver } from './run-observer'
 import { ConversationInbox } from './inbox'
 import type { QueuedExecution } from './execution-request'
-import { revision } from '../settings/resolve'
 import type { JobService } from '../jobs/service'
 import type { JobInvocation } from '../jobs/service'
 import type { MediaService } from '../media/service'
@@ -76,15 +73,22 @@ interface ActiveRun {
 }
 
 export class Coordinator {
+  recordInvokedCapability(runId: string, capability: string) {
+    const run = this.active.get(runId)?.run ?? this.store.getRun(runId)
+    if (!run) {
+      return
+    }
+    run.invokedCapabilities = [...new Set([...(run.invokedCapabilities ?? []), capability])]
+    this.store.saveRun(run)
+  }
   observations?: PluginObservations
   plugins?: PluginService
   private readonly queues = new Map<string, Promise<void>>()
   private readonly active = new Map<string, ActiveRun>()
   private readonly resourceCalls = new Map<string, Set<AbortController>>()
-  private readonly limiter: RunLimiter
   private scheduler?: Scheduler
-  private durable?: DurableAgentRuntime
-  private snapshots?: ConfigurationSnapshots
+  private durable?: AgentRuntime
+  private readonly snapshots: ConfigurationSnapshots
   private readonly recovery: QueuedExecution[] = []
   private closing = false
   private jobs?: JobService
@@ -101,7 +105,7 @@ export class Coordinator {
     readonly events: EventHub,
     readonly delivery: DeliveryService
   ) {
-    this.limiter = new RunLimiter(configuration().bot.agent.maxConcurrentRuns)
+    this.snapshots = new ConfigurationSnapshots(configuration)
     this.conversations = new ConversationService(store, events)
     this.inbox = new ConversationInbox({
       key: (input) => {
@@ -173,9 +177,44 @@ export class Coordinator {
     }
   }
 
-  attachDurable(runtime: DurableAgentRuntime) {
+  async deliverConfigured(pluginId: string, target: string, text: string, key: string) {
+    const parts = target.split(':')
+    if (parts.length !== 3) {
+      throw new Error('提醒目标格式应为 platform:message_type:session_id')
+    }
+    let kind: 'group' | 'direct' = 'direct'
+    if (['group', 'GroupMessage'].includes(parts[1])) {
+      kind = 'group'
+    } else if (!['private', 'direct', 'FriendMessage'].includes(parts[1])) {
+      throw new Error('提醒目标消息类型无效')
+    }
+    const rooms = this.store.listRooms().filter((room) => {
+      const channel = room.address.channel
+      const platform =
+        parts[0] === channel ||
+        parts[0] === room.address.accountId ||
+        (parts[0] === 'aiocqhttp' && channel === 'onebot-v11')
+      return platform && room.address.kind === kind && room.address.chatId === parts[2]
+    })
+    if (rooms.length !== 1) {
+      throw new Error('提醒目标必须唯一对应已登记的聊天范围')
+    }
+    this.assertRoomEnabled(rooms[0])
+    await this.delivery.send(rooms[0], text, undefined, 'system', 'plugin-configured:' + pluginId + ':' + key)
+  }
+
+  private requireRuntime() {
+    if (!this.durable) {
+      throw new Error('Durable Agent runtime must be attached before accepting runs')
+    }
+    return this.durable
+  }
+
+  attachDurable(runtime: AgentRuntime) {
+    if (this.durable) {
+      throw new Error('Durable Agent runtime is already attached')
+    }
     this.durable = runtime
-    this.snapshots = new ConfigurationSnapshots(this.configuration)
     this.observations = new PluginObservations(this, runtime)
     if (this.plugins) {
       this.plugins.observePoint = (invocation, point, id, value) => {
@@ -222,9 +261,7 @@ export class Coordinator {
   }
 
   async prepareRecovery() {
-    if (!this.durable || !this.snapshots) {
-      return
-    }
+    const runtime = this.requireRuntime()
     for (const run of this.store.recoverableRuns()) {
       try {
         if (!run.input || !run.context || !run.configSnapshot) {
@@ -253,16 +290,7 @@ export class Coordinator {
             this.trace(run, event)
           }
         )
-        this.durable.prepare(
-          run.id,
-          config,
-          room,
-          input,
-          controller.signal,
-          host.tools,
-          callbacks,
-          run.modelCalls
-        )
+        runtime.prepare(run.id, config, room, input, controller.signal, host.tools, callbacks, run.modelCalls)
         this.active.set(run.id, {
           roomId: room.id,
           run,
@@ -832,7 +860,13 @@ export class Coordinator {
       )
       return null
     }
-    if (text.trim() === '/status' || text.trim() === '/help') {
+    const statusPlugin =
+      this.plugins?.available() && findPluginCommand(this.configuration(), effective.settings, text)
+    if (
+      (text.trim() === '/status' && !statusPlugin) ||
+      text.trim() === '/botstatus' ||
+      text.trim() === '/help'
+    ) {
       beginDispatch()
       let pluginHelp = ''
       if (this.plugins?.available()) {
@@ -849,7 +883,7 @@ export class Coordinator {
             return '/' + command.name + '：' + command.description
           })
           .join('\n')
-      const status = `会话：${room.name}\n当前对话：${room.currentConversationId}\n人格：${effective.persona.name}\n模式：${room.mode}\n模型组：${effective.settings.preferences.providerGroup}\n执行环境：${execution.message}\n\n/help 查看帮助\n/stop 停止任务\n/new 新建共享对话\n/status 查看状态\n${this.configuration().bot.onebot.commandPrefix} 内容：触发 Agent。普通 QQ 消息只同步到会话。`
+      const status = `会话：${room.name}\n当前对话：${room.currentConversationId}\n人格：${effective.persona.name}\n模式：${room.mode}\n模型组：${effective.settings.preferences.providerGroup}\n执行环境：${execution.message}\n\n/help 查看帮助\n/stop 停止任务\n/new 新建共享对话\n/botstatus 查看会话状态\n${this.configuration().bot.onebot.commandPrefix} 内容：触发 Agent。普通 QQ 消息只同步到会话。`
       await this.delivery.send(
         room,
         status + '\n/skills 查看可用技能\n/skill ID 内容：显式使用技能\n' + jobCommandHelp + pluginHelp,
@@ -919,6 +953,10 @@ export class Coordinator {
       const invocation = this.jobInvocation(roomId, identity, text)
       let commandSignal = new AbortController().signal
       const services: HostToolServices = {
+        configuredDelivery: this.deliverConfigured.bind(this),
+        identity: () => {
+          return this.delivery.identity(room.address, commandSignal)
+        },
         media: this.pluginMedia(room) && {
           ...this.pluginMedia(room)!,
           preview: async () => {
@@ -982,6 +1020,9 @@ export class Coordinator {
               signal
             )
             services.authorize(pluginCommand.capabilityId)
+            if ('silent' in result && result.silent) {
+              return
+            }
             await this.delivery.send(
               room,
               result.summary,
@@ -1081,11 +1122,11 @@ export class Coordinator {
   }
 
   private prepareExecution(input: RunInput, status: 'queued' | 'batching'): QueuedExecution {
+    this.requireRuntime()
     if (this.closing) {
       throw new Error('服务正在关闭，请稍后重试')
     }
     const config = this.configuration()
-    this.limiter.setLimit(config.bot.agent.maxConcurrentRuns)
     if (this.active.size >= config.bot.agent.maxQueuedRuns) {
       throw new Error('任务队列已满，请稍后重试。')
     }
@@ -1112,10 +1153,12 @@ export class Coordinator {
     if (input.workspaceScope) {
       workspaceScope = input.workspaceScope
     }
+    const runId = crypto.randomUUID()
     const prepared: PreparedRunInput = freezeSnapshot(
       structuredClone({
         ...input,
         context: {
+          runId,
           conversationId: conversation.id,
           rootConversationId: room.currentConversationId,
           conversationEpoch: room.conversationEpoch,
@@ -1128,10 +1171,10 @@ export class Coordinator {
       })
     )
     const run: Run = {
-      id: crypto.randomUUID(),
+      id: runId,
       roomId: room.id,
       source: input.source,
-      engine: 'coding',
+      engine: 'durable',
       input,
       mode: room.mode,
       status,
@@ -1142,10 +1185,7 @@ export class Coordinator {
       toolCalls: 0,
       usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
     }
-    if (this.durable && this.snapshots) {
-      run.engine = 'durable'
-      run.configSnapshot = this.snapshots.save(config)
-    }
+    run.configSnapshot = this.snapshotConfiguration(config)
     const controller = new AbortController()
     this.linkMessages(run)
     this.active.set(run.id, { roomId: room.id, controller, run, completion: Promise.withResolvers<Run>() })
@@ -1158,15 +1198,7 @@ export class Coordinator {
     const room = this.requireRoom(input.roomId)
     const config = this.configuration()
     const effective = this.effective(room.id)
-    let configuration = revision({
-      bot: config.bot,
-      providers: config.catalog.config,
-      resources: config.resources.config,
-      versions: config.resources.capabilityRevisions(effective.settings)
-    })
-    if (this.snapshots) {
-      configuration = this.snapshots.save(config)
-    }
+    const configuration = this.snapshots.save(config)
     return [
       room.id,
       room.currentConversationId,
@@ -1263,15 +1295,7 @@ export class Coordinator {
           this.update(run)
           return
         }
-        let release = () => {}
-        if (!this.durable) {
-          release = await this.limiter.acquire()
-        }
-        try {
-          await this.execute(config, room, input, run, controller)
-        } finally {
-          release()
-        }
+        await this.execute(config, room, input, run, controller)
       })
       .finally(async () => {
         await this.durable?.abandon(run.id)
@@ -1355,6 +1379,10 @@ export class Coordinator {
       })
     }
     const tools: HostToolServices = {
+      configuredDelivery: this.deliverConfigured.bind(this),
+      identity: () => {
+        return this.delivery.identity(room.address, controller.signal)
+      },
       plugins: this.plugins,
       assertActive,
       present: async (text, callId, artifactIds) => {
@@ -1522,20 +1550,9 @@ export class Coordinator {
       },
       tools,
       invoke: (callbacks: import('../agent/events').AgentCallbacks) => {
-        if (this.durable) {
-          this.durable.prepare(
-            run.id,
-            config,
-            room,
-            input,
-            controller.signal,
-            tools,
-            callbacks,
-            run.modelCalls
-          )
-          return this.durable.run(run.id, config, room, input, controller.signal, tools, callbacks)
-        }
-        return runPi(config, room, input, controller.signal, tools, callbacks)
+        const runtime = this.requireRuntime()
+        runtime.prepare(run.id, config, room, input, controller.signal, tools, callbacks, run.modelCalls)
+        return runtime.run(run.id, config, room, input, controller.signal, tools, callbacks)
       }
     }
   }
@@ -1694,6 +1711,13 @@ export class Coordinator {
       throw new Error(`能力已停用或配置已变化：${capability}`)
     }
     if (
+      capability.startsWith('resource:') &&
+      context.capabilityRevisions[capability] !==
+        this.configuration().resources.capabilityRevisions(effective.settings)[capability]
+    ) {
+      throw new Error('资源配置或协议已变化，原调用不可继续')
+    }
+    if (
       ['read', 'write', 'edit', 'ls', 'bash'].includes(capability) &&
       this.configuration().bot.agent.execution.backend !== 'shipyard'
     ) {
@@ -1737,6 +1761,7 @@ export class Coordinator {
         config,
         room,
         input,
+        invokedCapabilities: this.store.getRun(input.context.runId ?? '')?.invokedCapabilities ?? [],
         origin,
         services: {
           media: this.pluginMedia(room),
@@ -1885,16 +1910,10 @@ export class Coordinator {
   }
 
   snapshotConfiguration(config = this.configuration()) {
-    if (!this.snapshots) {
-      throw new Error('Durable 配置归档尚未启用')
-    }
     return this.snapshots.save(config)
   }
 
   loadConfigurationSnapshot(id: string) {
-    if (!this.snapshots) {
-      throw new Error('Durable 配置归档尚未启用')
-    }
     return this.snapshots.load(id)
   }
 

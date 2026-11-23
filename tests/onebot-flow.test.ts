@@ -1,3 +1,5 @@
+import { DurableAgentRuntime } from '../src/agent/durable/runtime'
+import { MemoryStorage } from '@earendil-works/pi-durable'
 import { afterEach, expect, test } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -40,8 +42,7 @@ test('QQ messages reach the conversation, bare help replies, self echoes dedupli
       defaultGroup: 'main',
       providers: [],
       groups: [{ id: 'main', candidates: [] }]
-    }),
-    root
+    })
   )
   const config = {
     bot,
@@ -68,6 +69,7 @@ test('QQ messages reach the conversation, bare help replies, self echoes dedupli
     events,
     delivery
   )
+  coordinator.attachDurable(await new DurableAgentRuntime().open(new MemoryStorage()))
   const adapter = new OneBotAdapter(
     () => {
       return bot.onebot

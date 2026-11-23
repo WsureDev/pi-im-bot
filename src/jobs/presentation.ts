@@ -21,7 +21,11 @@ export function suppressPresentation(service: JobService, value: JobRevision) {
   }
   const outbound = service.coordinator.store.getOutbound(value.presentation.outboundId)
   if (outbound?.state === 'rendering') {
-    service.coordinator.store.saveOutbound({ ...outbound, state: 'suppressed', error: '待呈现回复已停止' })
+    let state: 'suppressed' | 'cancelled' = 'suppressed'
+    if (outbound.renderedMessages?.length) {
+      state = 'cancelled'
+    }
+    service.coordinator.store.saveOutbound({ ...outbound, state, error: '待呈现回复已停止' })
   }
 }
 
@@ -33,9 +37,15 @@ export async function finishPresentation(
 ) {
   const coordinator = service.coordinator
   const id = value.presentation!.outboundId
-  let result: { text: string; artifactIds: string[] } | undefined
+  let result:
+    | { text: string; artifactIds: string[]; messages?: NonNullable<JobRevision['result']>['messages'] }
+    | undefined
   if (value.state === 'succeeded' && value.result) {
-    result = { text: value.result.summary, artifactIds: value.result.artifactIds }
+    result = {
+      text: value.result.summary,
+      artifactIds: value.result.artifactIds,
+      messages: value.result.messages
+    }
   }
   const validate = async () => {
     await beforePart()

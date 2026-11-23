@@ -79,6 +79,7 @@ export async function gsviRequest(
       address.password = ''
     }
     try {
+      headers.set('x-pi-plugin-request', 'resource')
       response = await fetch(address, {
         method,
         headers,

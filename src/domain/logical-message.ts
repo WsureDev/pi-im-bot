@@ -1,6 +1,13 @@
 import { z } from 'zod'
 export const LogicalMessageSchema = z
-  .object({ text: z.string().max(20000).default(''), artifactIds: z.array(z.uuid()).max(8).default([]) })
+  .object({
+    key: z
+      .string()
+      .regex(/^[a-zA-Z0-9_-]{1,80}$/u)
+      .optional(),
+    text: z.string().max(100000).default(''),
+    artifactIds: z.array(z.uuid()).max(8).default([])
+  })
   .strict()
 export const SendMessageInputSchema = z.union([
   LogicalMessageSchema.refine(

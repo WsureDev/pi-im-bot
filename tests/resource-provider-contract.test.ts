@@ -272,8 +272,7 @@ test('a resource operation executes through the isolated RPC host using only its
       catalog: await ProviderCatalog.create(
         ProvidersConfigSchema.parse(
           await Bun.file(new URL('../config/providers.example.json', import.meta.url)).json()
-        ),
-        fixture.root
+        )
       ),
       projectDir: fixture.root,
       dataDir: fixture.root,

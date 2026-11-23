@@ -5,6 +5,7 @@ import { RunInputSchema, RunSourceSchema, type RunInput } from './run-input'
 export type { RunInput } from './run-input'
 
 export const ExecutionContextSchema = z.object({
+  runId: z.string().optional(),
   resourceId: z.string().optional(),
   resourceRevision: z.string().optional(),
   entryCapability: z.string().optional(),
@@ -33,6 +34,7 @@ export const UsageSchema = z.object({
 export type Usage = z.infer<typeof UsageSchema>
 
 export const RunSchema = z.object({
+  invokedCapabilities: z.array(z.string()).optional(),
   id: z.string(),
   roomId: z.string(),
   source: RunSourceSchema,

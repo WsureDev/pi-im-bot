@@ -1,3 +1,5 @@
+import { DurableAgentRuntime } from '../src/agent/durable/runtime'
+import { MemoryStorage } from '@earendil-works/pi-durable'
 import { afterEach, expect, test } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { BotConfigSchema } from '../src/config/schema'
@@ -30,8 +32,7 @@ async function fixture() {
         defaultGroup: 'main',
         providers: [],
         groups: [{ id: 'main', candidates: [] }]
-      }),
-      root
+      })
     ),
     framework: testFramework(),
     resources: testResources(),
@@ -42,7 +43,7 @@ async function fixture() {
   const store = new MemoryState()
   const channels = new ChannelRegistry()
   channels.register(createMockAdapter())
-  function open() {
+  async function open() {
     const events = new EventHub()
     const coordinator = new Coordinator(
       () => {
@@ -52,6 +53,7 @@ async function fixture() {
       events,
       new DeliveryService(channels, store, events)
     )
+    coordinator.attachDurable(await new DurableAgentRuntime().open(new MemoryStorage()))
     cleanup.push(async () => {
       await coordinator.shutdown()
     })
@@ -60,7 +62,7 @@ async function fixture() {
   cleanup.push(async () => {
     await rm(root, { recursive: true, force: true })
   })
-  const coordinator = open()
+  const coordinator = await open()
   const room = coordinator.createMockRoom('inbound', 'group')
   function incoming(externalId: string, text = '/review respond') {
     return {
@@ -75,6 +77,23 @@ async function fixture() {
   }
   return { config, store, channels, coordinator, room, incoming, open }
 }
+
+test('an unassembled coordinator refuses admission and recovery without a legacy fallback', async () => {
+  const env = await fixture()
+  const events = new EventHub()
+  const coordinator = new Coordinator(
+    () => env.config,
+    env.store,
+    events,
+    new DeliveryService(env.channels, env.store, events)
+  )
+  try {
+    await expect(coordinator.receive(env.room.id, 'request')).rejects.toThrow('must be attached')
+    await expect(coordinator.prepareRecovery()).rejects.toThrow('must be attached')
+  } finally {
+    await coordinator.shutdown()
+  }
+})
 
 test('queue rejection keeps the archived input retryable and concurrent retries admit exactly one run', async () => {
   const env = await fixture()
@@ -113,7 +132,7 @@ test('recovery accepts an archived input after a failure before atomic run admis
   )
   expect(env.store.listRuns()).toHaveLength(0)
   env.store.saveRunAdmission = save
-  const restored = env.open()
+  const restored = await env.open()
   restored.resumeRecovery()
   await Bun.sleep(10)
   expect(env.store.findPlatformMessage(env.room.id, 'crash')?.inbound?.state).toBe('accepted')
@@ -153,7 +172,8 @@ test('a direct command with an uncertain delivery is never executed again on dup
       }
     }
   })
-  env.open().resumeRecovery()
+  const recovered = await env.open()
+  recovered.resumeRecovery()
   await Bun.sleep(10)
   expect(env.store.getMessage(archived.id)?.inbound?.state).toBe('unknown')
   expect(env.store.listConversations(env.room.id)).toHaveLength(2)

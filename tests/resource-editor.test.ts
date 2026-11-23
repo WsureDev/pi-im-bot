@@ -28,8 +28,7 @@ test('MCP web edits preserve masked credentials, reject stale writes, discover o
         defaultGroup: 'main',
         providers: [],
         groups: [{ id: 'main', candidates: [] }]
-      }),
-      root
+      })
     )
     const config = {
       bot: BotConfigSchema.parse({}),

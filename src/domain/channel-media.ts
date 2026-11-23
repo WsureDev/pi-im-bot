@@ -10,6 +10,10 @@ export interface SendControl {
   beforePart?(): void | Promise<void>
   received?(messageIds: string[], sentAt: number): void | Promise<void>
 }
+export interface ChannelMessagePart {
+  text: string
+  media: readonly ChannelMedia[]
+}
 
 /** A local veto before the next transport call. No unknown external send is implied. */
 export class SendBlocked extends Error {

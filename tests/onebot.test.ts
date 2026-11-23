@@ -6,6 +6,52 @@ import { authorizeOneBot, tokenRevision } from '../src/channels/onebot/auth'
 import { EventHub } from '../src/runtime/events'
 import type { IncomingMessage } from '../src/domain/message'
 import { nextOccurrence } from '../src/scheduler/service'
+import { z } from 'zod'
+
+test('OneBot validates acknowledgements without retrying sends, and preserves exact string IDs', async () => {
+  const config = OneBotConfigSchema.parse({
+    targets: [{ selfId: '11', chatId: '33', name: 'test', enabled: true }]
+  })
+  const adapter = new OneBotAdapter(
+    () => config,
+    new EventHub(),
+    async () => 'recorded'
+  )
+  const address = { channel: 'onebot', accountId: '11', kind: 'group' as const, chatId: '33' }
+  let response: { status: string; retcode: number; data: unknown } = {
+    status: 'ok',
+    retcode: 0,
+    data: { message_id: '9223372036854775807' }
+  }
+  const actions: string[] = []
+  const socket = {
+    send(raw: string) {
+      const request = z.object({ action: z.string(), echo: z.string() }).parse(JSON.parse(raw))
+      actions.push(request.action)
+      void adapter.message('11', JSON.stringify({ ...response, echo: request.echo }), socket)
+      return raw.length
+    },
+    close() {}
+  }
+  adapter.connect('11', socket, tokenRevision(''))
+  expect((await adapter.send(address, 'first')).messageIds).toEqual(['9223372036854775807'])
+  response = { status: 'failed', retcode: 0, data: { message_id: 44 } }
+  await expect(adapter.send(address, 'failed')).rejects.toThrow('OneBot')
+  response = { status: 'ok', retcode: 0, data: {} }
+  await expect(adapter.send(address, 'missing receipt')).rejects.toThrow()
+  response = { status: 'ok', retcode: 0, data: { message_id: 9007199254740992 } }
+  await expect(adapter.send(address, 'unsafe numeric receipt')).rejects.toThrow()
+  response = { status: 'ok', retcode: 0, data: null }
+  await adapter.recall(address, '9223372036854775807')
+  expect(actions).toEqual([
+    'send_group_msg',
+    'send_group_msg',
+    'send_group_msg',
+    'send_group_msg',
+    'delete_msg'
+  ])
+  adapter.disconnect('11', socket)
+})
 
 describe('OneBot test-room routing', () => {
   test('discovers an unknown discussion group without invoking the agent', async () => {

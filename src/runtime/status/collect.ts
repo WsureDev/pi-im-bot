@@ -1,3 +1,4 @@
+import { readMetricText as procText } from './proc'
 import {
   cpus,
   availableParallelism,
@@ -14,24 +15,17 @@ import type { Configuration } from '../../config/load'
 import { RuntimeStatusSchema, type RuntimeStatus } from './schema'
 import packageInfo from '../../../package.json'
 import { probeNvidiaGpu } from './gpu'
+import { collectLinuxMetrics } from './linux'
+import { probeAmdGpu } from './amd'
 
-async function procText(path: string) {
-  const file = await open(path, 'r')
-  try {
-    const data = Buffer.alloc(512 * 1024)
-    const read = await file.read(data, 0, data.length, 0)
-    if (read.bytesRead === data.length) {
-      throw new Error('Metric exceeds read budget')
-    }
-    return data.subarray(0, read.bytesRead).toString('utf8')
-  } finally {
-    await file.close()
-  }
-}
 function cpuTimes() {
   const values = cpus()
   return {
     model: values[0]?.model ?? 'CPU',
+    mhz:
+      values.reduce((sum, cpu) => {
+        return sum + cpu.speed
+      }, 0) / Math.max(1, values.length),
     count: values.length || availableParallelism(),
     idle: values.reduce((sum, cpu) => {
       return sum + cpu.times.idle
@@ -68,9 +62,24 @@ async function sampleCpu() {
       usagePercent = percent(total - (after.idle - before.idle), total)
     }
     const loads = loadavg()
+    const cpuinfo = await procText('/proc/cpuinfo').catch(() => {
+      return ''
+    })
+    const physical = new Set(
+      cpuinfo.split(/\n\n/gu).flatMap((record) => {
+        const socket = /^physical id\s*:\s*(\d+)/mu.exec(record)?.[1]
+        const core = /^core id\s*:\s*(\d+)/mu.exec(record)?.[1]
+        if (socket && core) {
+          return [socket + ':' + core]
+        }
+        return []
+      })
+    )
     return {
       model: after.model.slice(0, 300),
       logicalCpus: after.count,
+      physicalCpus: physical.size || null,
+      currentMHz: after.mhz || null,
       usagePercent,
       sampleMs: Math.max(1, performance.now() - started),
       loadAverage: [loads[0] ?? 0, loads[1] ?? 0, loads[2] ?? 0] as [number, number, number]
@@ -124,9 +133,11 @@ export async function collectRuntimeStatus(config: Configuration): Promise<Runti
     swap(),
     statfs(config.dataDir),
     network(),
-    probeNvidiaGpu()
+    probeNvidiaGpu(),
+    collectLinuxMetrics(),
+    probeAmdGpu()
   ])
-  const [cpu, swapping, disk, traffic, gpu] = results
+  const [cpu, swapping, disk, traffic, gpu, linux, amd] = results
   const warnings: RuntimeStatus['warnings'] = []
   let cpuValue: RuntimeStatus['cpu'] = {
     model: 'CPU',
@@ -164,7 +175,30 @@ export async function collectRuntimeStatus(config: Configuration): Promise<Runti
   } else {
     warnings.push('network-unavailable')
   }
-  const gpuValue = gpu.status === 'fulfilled' ? gpu.value : undefined
+  let gpuValue: RuntimeStatus['gpu'] | undefined
+  if (gpu.status === 'fulfilled') {
+    gpuValue = gpu.value
+  }
+  if (amd.status === 'fulfilled' && amd.value) {
+    if (gpuValue) {
+      gpuValue = {
+        provider: 'mixed',
+        source: 'nvidia-smi+sysfs',
+        devices: [
+          ...gpuValue.devices.map((device) => {
+            return { ...device, id: 'nvidia:' + device.index }
+          }),
+          ...amd.value.devices
+        ].slice(0, 16)
+      }
+    } else {
+      gpuValue = amd.value
+    }
+  }
+  let linuxValue = null
+  if (linux.status === 'fulfilled') {
+    linuxValue = linux.value
+  }
   if (!gpuValue) {
     warnings.push('gpu-unavailable')
   }
@@ -181,7 +215,13 @@ export async function collectRuntimeStatus(config: Configuration): Promise<Runti
     version: 1,
     measuredAt: Date.now(),
     observer: 'bot-control-plane',
-    system: { platform: platform(), architecture: arch(), kernel: release(), uptimeSeconds: uptime() },
+    system: {
+      platform: platform(),
+      architecture: arch(),
+      kernel: release(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      uptimeSeconds: uptime()
+    },
     cpu: cpuValue,
     memory: {
       totalBytes: total,
@@ -193,6 +233,7 @@ export async function collectRuntimeStatus(config: Configuration): Promise<Runti
     disk: diskValue,
     network: networkValue,
     gpu: gpuValue ?? null,
+    linux: linuxValue,
     bot: {
       name: 'Pi IM Bot',
       version: packageInfo.version,

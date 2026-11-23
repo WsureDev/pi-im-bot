@@ -1,3 +1,4 @@
+import type { AgentRuntime } from '../runtime'
 import { BACKGROUND_CONTEXT, withAbortSignal } from '@earendil-works/chord/context'
 import { z } from 'zod'
 import { createModels } from '@earendil-works/pi-ai/models'
@@ -22,7 +23,7 @@ import type { Configuration } from '../../config/load'
 import type { Room } from '../../domain/message'
 import type { PreparedRunInput } from '../../domain/run'
 import type { AgentCallbacks } from '../events'
-import type { HostToolServices } from '../host-tools'
+import type { HostToolServices } from '../services'
 import { createToolkit } from '../toolkit'
 import { projectInput } from '../../messages/projection'
 import { runProvider } from './model'
@@ -37,7 +38,7 @@ import { JobFacts } from '../../jobs/documents'
 const context = BACKGROUND_CONTEXT
 const SearchInputSchema = z.object({ query: z.string(), limit: z.number().optional() })
 
-export class DurableAgentRuntime {
+export class DurableAgentRuntime implements AgentRuntime {
   readonly models = createModels()
   readonly registry = createRegistry()
   private harness?: Harness
@@ -45,7 +46,6 @@ export class DurableAgentRuntime {
   private readonly bindings = new Map<string, DurableBinding>()
   private readonly running = new Map<string, Promise<string>>()
   private conversationIndexReady?: Promise<void>
-  private compactionModels: Record<string, { enabled: boolean }> = {}
   private readonly modelLimits: ModelLimits
 
   constructor(
@@ -69,8 +69,7 @@ export class DurableAgentRuntime {
             enabled: true,
             reserveTokens: 16384,
             keepRecentTokens: 8000,
-            backgroundTokens: 0,
-            modelOverrides: this.compactionModels
+            backgroundTokens: 0
           },
           toolExecution: 'sequential',
           followUpMode: 'all',
@@ -126,13 +125,26 @@ export class DurableAgentRuntime {
       spent
     )
     this.models.setProvider(provider)
-    const modelKey = provider.id + '/' + provider.getModels()[0].id
-    this.compactionModels[modelKey] = { enabled: room.mode === 'live' }
     const tools: ToolRegistration[] = toolkit.tools.map((tool) => {
       const definition = durableTool(tool, () => {
         services.authorize(toolkit.capabilityFor(tool.name))
       })
-      return withDeferred(definition, tool.exposure === 'deferred')
+      return withDeferred(
+        {
+          ...definition,
+          async execute(args, api, callContext) {
+            if (tool.exposure === 'deferred') {
+              services.authorize(toolkit.capabilityFor(tool.name), 'tool')
+              await api.commit(async (tx) => {
+                const state = await tx.doc(ToolExposure, api.conversationId)
+                state.lastUsed[tool.name] = state.turn
+              }, callContext)
+            }
+            return definition.execute(args, api, callContext)
+          }
+        },
+        tool.exposure === 'deferred'
+      )
     })
     if (toolkit.searchAllowed) {
       const search = createToolSearchTool()
@@ -275,8 +287,7 @@ export class DurableAgentRuntime {
       callbacks,
       toolkit,
       provider,
-      extension,
-      modelKey
+      extension
     }
     this.bindings.set(id, binding)
     return binding
@@ -315,7 +326,7 @@ export class DurableAgentRuntime {
     callbacks: AgentCallbacks
   ) {
     const binding = this.prepare(id, config, room, input, signal, services, callbacks)
-    const { toolkit, provider, extension, modelKey } = binding
+    const { toolkit, provider, extension } = binding
     const tools = extension.tools ?? []
     const nativeId = await this.ensureConversation(config, room, input).catch(async (error) => {
       if (!this.closing) {
@@ -361,6 +372,7 @@ export class DurableAgentRuntime {
           thinkingLevel: 'off',
           cwd: '/workspace',
           maxTurns: toolkit.effective.settings.behavior.maxModelCalls,
+          compaction: { enabled: room.mode === 'live' },
           instructions: [toolkit.effective.persona.prompt, toolkit.effective.settings.preferences.replyStyle]
             .filter(Boolean)
             .join('\n\n')
@@ -429,7 +441,7 @@ export class DurableAgentRuntime {
     if (existing !== undefined && existing !== null) {
       return existing
     }
-    const history = legacyContext(config, room, input)
+    const history = await legacyContext(config, room, input)
     return this.native.commit(async (tx) => {
       const binding = await tx.doc(ConversationBinding, key, null)
       const existing = binding.conversationId
@@ -453,7 +465,6 @@ export class DurableAgentRuntime {
     await binding.toolkit.close()
     this.registry.uninstall(binding.extension)
     this.models.deleteProvider(binding.provider.id)
-    delete this.compactionModels[binding.modelKey]
     this.bindings.delete(binding.id)
   }
 

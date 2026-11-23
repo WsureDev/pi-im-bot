@@ -1,5 +1,7 @@
 import { join } from 'node:path'
 import { independentCapabilities } from '../resource-providers/capabilities'
+import { resourceDefinitions, resourceExecutionRevision } from '../resource-providers/registry'
+import { resourceCapability } from '../resource-providers/protocol'
 import { mkdir, rename, unlink } from 'node:fs/promises'
 import { McpCatalogFileSchema, type McpManifest } from './mcp/schema'
 import { ResourcesConfigSchema, type ResourcesConfig } from './schema'
@@ -118,6 +120,25 @@ export class ResourceLibrary {
 
   capabilityRevisions(settings: Settings) {
     const result: Record<string, string> = {}
+    const definitions = resourceDefinitions(this.config)
+    for (const instance of this.config.providers) {
+      const provider = definitions.providers.find((entry) => {
+        return entry.id === instance.provider
+      })
+      if (!provider) {
+        continue
+      }
+      for (const mapping of provider.mappings) {
+        const protocol = definitions.protocols.find((entry) => {
+          return entry.id === mapping.protocol
+        })
+        result[resourceCapability(instance.id, mapping.protocol, mapping.method)] = resourceExecutionRevision(
+          instance,
+          provider,
+          protocol
+        )
+      }
+    }
     for (const entry of this.mcpTools(settings)) {
       result[entry.id] = revision({
         server: mcpServerRevision(entry.server),

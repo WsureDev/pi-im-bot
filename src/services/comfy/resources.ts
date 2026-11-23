@@ -205,21 +205,20 @@ export const ComfyServiceSchema = z
     id: ServiceIdSchema,
     name: z.string().min(1).max(100),
     kind: z.literal('comfy'),
+    sourceCompatible: z.boolean().optional(),
     enabled: z.boolean().default(false),
     url: ServiceUrlSchema,
     headers: GsviServiceSchema.shape.headers,
-    timeoutMs: z.number().int().min(1000).max(30000).default(10000),
+    timeoutMs: z.number().int().min(1000).default(10000),
     maxHistoryBytes: z
       .number()
       .int()
       .min(1024)
-      .max(4 * 1024 * 1024)
       .default(1024 * 1024),
     maxImageBytes: z
       .number()
       .int()
       .min(64)
-      .max(32 * 1024 * 1024)
       .default(8 * 1024 * 1024),
     workflows: z.array(ServiceIdSchema).max(64).default([])
   })

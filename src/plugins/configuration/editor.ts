@@ -1,4 +1,9 @@
 import { compatibleResource } from '../../resource-providers/bindings'
+import {
+  projectedResourceValues,
+  saveProjectedResources,
+  resourceWorkerDefinition
+} from '../../resource-providers/projection'
 import type { PluginEditor } from '../editor'
 import type { FrameworkEditor } from '../../settings/editor'
 import { SettingsEditError } from '../../settings/editor'
@@ -56,9 +61,15 @@ export class PluginConfigurationEditor {
     if (usesGsviConfiguration(bundle) && target.level !== 'instance') {
       definition = gsviWorkerDefinition(bundle)
     }
+    if (target.level !== 'instance') {
+      definition = resourceWorkerDefinition(bundle, definition)
+    }
     const resourceView = await this.plugins.read()
     const frameworkView = await this.framework.read()
     let current: ConfigValues = instance.settings
+    if (target.level === 'instance') {
+      current = projectedResourceValues(config.resources.config, instance, bundle)
+    }
     if (usesGsviConfiguration(bundle) && target.level === 'instance') {
       current = gsviPageValues(config.resources.config, instance, bundle)
     }
@@ -128,6 +139,7 @@ export class PluginConfigurationEditor {
         target: { level: 'account', ...account }
       })
     }
+    definition = await this.plugins.resourceOptions.definition(id, bundle, definition, current)
     const token = revision({
       resources: resourceView.revision,
       framework: frameworkView.version,
@@ -242,7 +254,13 @@ export class PluginConfigurationEditor {
             alias: connection.alias,
             title: connection.title,
             kind: connection.kind,
-            required: connection.required,
+            required:
+              connection.required ||
+              Boolean(
+                state.bundle.manifest.resources.find((entry) => {
+                  return entry.alias === connection.alias
+                })?.configurationProjection
+              ),
             value: mapping[connection.alias] ?? '',
             choices
           }
@@ -268,6 +286,23 @@ export class PluginConfigurationEditor {
         const instance = config.plugins.find((entry) => {
           return entry.id === id
         })!
+        const previousBindings = { ...instance.resources }
+        for (const [alias, value] of Object.entries(input.resources ?? {})) {
+          const dependency = state.bundle.manifest.resources.find((entry) => {
+            return entry.alias === alias
+          })
+          if (!dependency) {
+            throw new Error('不能修改未声明的资源绑定')
+          }
+          if (value) {
+            if (!compatibleResource(state.bundle, alias, state.config.resources.config, value)) {
+              throw new Error('资源不满足所需协议')
+            }
+            instance.resources[alias] = value
+          } else if (!dependency.configurationProjection) {
+            delete instance.resources[alias]
+          }
+        }
         if (state.definition) {
           const values = fillConfigDefaults(
             state.definition,
@@ -280,7 +315,11 @@ export class PluginConfigurationEditor {
             GsviPageSchema.parse(values)
             saveGsviPage(config, instance, state.bundle, values)
           } else {
-            instance.settings = values
+            saveProjectedResources(config, instance, state.bundle, values, {
+              bindings: previousBindings,
+              values: state.current
+            })
+            instance.activation = crypto.randomUUID()
           }
         } else if (Object.keys(input.values).length || input.secrets.length) {
           throw new Error('插件没有声明可视化配置字段')
@@ -291,6 +330,9 @@ export class PluginConfigurationEditor {
           ['plugin', input.dependencies],
           ['resource', input.resources]
         ] as const) {
+          if (kind === 'resource') {
+            continue
+          }
           if (!values) {
             continue
           }
@@ -301,9 +343,6 @@ export class PluginConfigurationEditor {
           if (kind === 'service') {
             mapping = instance.services
           }
-          if (kind === 'resource') {
-            mapping = instance.resources
-          }
           for (const [alias, value] of Object.entries(values)) {
             if (
               !pluginConnections(state.bundle).some((entry) => {
@@ -313,12 +352,6 @@ export class PluginConfigurationEditor {
               throw new Error('不能修改未声明的服务绑定：' + alias)
             }
             if (value) {
-              if (
-                kind === 'resource' &&
-                !compatibleResource(state.bundle, alias, state.config.resources.config, value)
-              ) {
-                throw new Error('资源不满足插件声明的协议或方法')
-              }
               mapping[alias] = value
             } else {
               delete mapping[alias]
@@ -383,8 +416,11 @@ export class PluginConfigurationEditor {
         })
       }
     }
-    if (usesGsviConfiguration(initial.bundle) && input.target.level === 'instance') {
-      this.plugins.gsviRefresh.request(id)
+    if (input.target.level === 'instance') {
+      if (usesGsviConfiguration(initial.bundle)) {
+        this.plugins.gsviRefresh.request(id)
+      }
+      this.plugins.resourceOptions.request(id)
     }
     return this.read(id, input.target)
   }

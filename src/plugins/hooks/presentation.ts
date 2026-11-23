@@ -1,4 +1,7 @@
 import { namedService, serviceRevision } from '../../services/resources'
+import { pluginActionCapabilities } from '../action-capabilities'
+import { resolveResource } from '../../resource-providers/registry'
+import type { ArtifactAccess } from '../../artifacts/access'
 import { ArtifactStore } from '../../artifacts/store'
 import type { DeliveryPresentation } from '../../domain/presentation'
 import { revision } from '../../settings/resolve'
@@ -68,6 +71,22 @@ export function pluginPresentation(
         const capabilities = [
           ...new Set(
             entry.hook.inspectCapabilities.map((id) => {
+              if (id.startsWith('resource:')) {
+                const parts = id.slice('resource:'.length).split('/')
+                if (parts.length === 2) {
+                  const instance = invocation.config.resources.config.plugins.find((item) => {
+                    return item.id === entry.instanceId
+                  })
+                  const bundle = invocation.config.resources.pluginPackage(entry.instanceId)
+                  const dependency = bundle?.manifest.resources.find((item) => {
+                    return item.alias === parts[0] && item.methods.includes(parts[1])
+                  })
+                  const resourceId = instance?.resources[parts[0]]
+                  if (resourceId && dependency) {
+                    return 'resource:' + resourceId + '/' + dependency.protocol + '/' + parts[1]
+                  }
+                }
+              }
               return id.replace('plugin:self/', 'plugin:' + entry.instanceId + '/')
             })
           )
@@ -118,6 +137,8 @@ export function pluginPresentation(
         content = 'mixed'
       }
       const view = visibilityNode.input.parse({
+        originalText: text,
+        invokedCapabilities: invocation.invokedCapabilities ?? [],
         id,
         roomId: invocation.room.id,
         address: invocation.room.address,
@@ -173,13 +194,36 @@ export function pluginPresentation(
             throw new Error('异步呈现必须引用本实例无私有数据的后台操作')
           }
           invocation.services.authorize(capability)
-          for (const action of entry.operation.actions) {
+          for (const action of pluginActionCapabilities(entry)) {
             invocation.services.authorize(action)
           }
           const services: Record<string, { id: string; revision: string }> = {}
+          const resources: NonNullable<NonNullable<ArtifactAccess['plugin']>['resources']> = {}
           for (const grant of entry.operation.grants) {
             if (!entry.instance.grants.includes(grant)) {
               return { allow: true, ...result, handlers: [...used] }
+            }
+            if (grant.startsWith('resource:')) {
+              const alias = grant.slice(9)
+              const dependency = entry.bundle.manifest.resources.find((item) => {
+                return item.alias === alias
+              })
+              const id = entry.instance.resources[alias]
+              if (!id || !dependency) {
+                return { allow: true, ...result, handlers: [...used] }
+              }
+              const selected = resolveResource(
+                invocation.config.resources.config,
+                id,
+                dependency.protocol,
+                dependency.methods[0]
+              )
+              resources[alias] = {
+                id,
+                protocol: dependency.protocol,
+                method: dependency.methods[0],
+                revision: selected.revision
+              }
             }
             if (grant.startsWith('service:')) {
               const alias = grant.slice(8)
@@ -191,7 +235,7 @@ export function pluginPresentation(
               services[alias] = { id: serviceId, revision: serviceRevision(resource) }
             }
           }
-          const required = [...entry.operation.actions]
+          const required = pluginActionCapabilities(entry)
           const actions: string[] = required
           if (producer === 'agent-tool') {
             actions.push('chat_send')
@@ -212,7 +256,8 @@ export function pluginPresentation(
                 plugin: {
                   instanceId: instanceId,
                   grants: entry.operation.grants,
-                  services
+                  services,
+                  resources
                 }
               }
             }

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { ExecutionContextSchema } from '../domain/run'
 import { ScheduleOriginSchema } from '../scheduler/origin'
 import { ExternalStatusSchema } from './external/status'
+import { LogicalMessageSchema } from '../domain/logical-message'
 
 export const JobSpecSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('agent'), prompt: z.string().min(1).max(20000) }),
@@ -26,15 +27,19 @@ export const JobStateSchema = z.enum([
   'outcome_unknown'
 ])
 export const JobResultSchema = z.object({
+  messages: z.array(LogicalMessageSchema).optional(),
   summary: z.string(),
   artifactIds: z.array(z.string()).default([]),
   format: MessageFormatSchema.optional(),
   itemized: z.boolean().optional(),
   businessStatus: BusinessStatusSchema.optional(),
   factsComplete: z.boolean().optional(),
-  items: z.array(BusinessItemSchema).max(16).optional()
+  items: z.array(BusinessItemSchema).optional()
 })
 export const JobRevisionSchema = z.object({
+  operationResponse: z.enum(['complete', 'checkpoint']).optional(),
+  operationCheckpoint: z.boolean().optional(),
+  progressMessage: z.string().optional(),
   revision: z.number().int().positive(),
   title: z.string().min(1).max(100),
   spec: JobSpecSchema,
@@ -80,6 +85,7 @@ export const JobSchema = z.object({
 })
 export type Job = z.infer<typeof JobSchema>
 export const JobSummarySchema = z.object({
+  progressMessage: z.string().optional(),
   kind: z.enum(['agent', 'tool']).optional(),
   id: z.string(),
   roomId: z.string(),
@@ -102,6 +108,7 @@ export type JobSummary = z.infer<typeof JobSummarySchema>
 export function jobSummary(job: Job): JobSummary {
   const current = job.revisions[String(job.currentRevision)]
   return {
+    progressMessage: current.progressMessage,
     kind: current.spec.kind,
     id: job.id,
     roomId: job.roomId,

@@ -33,13 +33,16 @@ const HttpMappingSchema = z
   })
   .strict()
 const McpMappingSchema = z.object({ kind: z.literal('mcp'), tool: z.string().min(1).max(256) }).strict()
+const RegisteredMappingSchema = z
+  .object({ kind: z.literal('registered'), adapter: ResourceIdSchema })
+  .strict()
 export const ResourceMappingSchema = z
   .object({
     protocol: ProtocolIdSchema,
     method: ResourceIdSchema,
     inputMapping: z.record(z.string(), z.string()).optional(),
     outputPath: z.string().optional(),
-    transport: z.discriminatedUnion('kind', [HttpMappingSchema, McpMappingSchema]),
+    transport: z.discriminatedUnion('kind', [HttpMappingSchema, McpMappingSchema, RegisteredMappingSchema]),
     files: z
       .object({
         itemsPath: z.string(),
@@ -57,6 +60,9 @@ export const ProviderDefinitionSchema = z
     title: z.string().min(1).max(100),
     description: z.string().max(4000),
     configuration: ConfigDefinitionSchema,
+    timeoutField: z.string().default('timeoutMs'),
+    operationTimeoutField: z.string().optional(),
+    optionIdentityFields: z.array(z.string()).default([]),
     mappings: z.array(ResourceMappingSchema).min(1).max(200)
   })
   .strict()
@@ -69,12 +75,43 @@ export const ResourceInstanceSchema = z
     configuration: ConfigValuesSchema.default({})
   })
   .strict()
+const ConfigurationPathSchema = z
+  .string()
+  .min(1)
+  .max(400)
+  .refine((path) => {
+    return path.split('.').every((part) => {
+      return (
+        /^[a-zA-Z_][a-zA-Z0-9_-]*$/u.test(part) && !['__proto__', 'prototype', 'constructor'].includes(part)
+      )
+    })
+  }, '配置路径必须是有效的字段路径')
 export const ResourceDependencySchema = z
   .object({
     alias: ResourceIdSchema,
     protocol: ProtocolIdSchema,
     methods: z.array(ResourceIdSchema).min(1).max(100),
-    required: z.boolean().default(true)
+    required: z.boolean().default(true),
+    configurationProjection: z
+      .object({
+        provider: ResourceIdSchema,
+        fields: z.record(ConfigurationPathSchema, ConfigurationPathSchema)
+      })
+      .strict()
+      .optional(),
+    options: z
+      .array(
+        z
+          .object({
+            field: ConfigurationPathSchema,
+            method: ResourceIdSchema,
+            parameters: z.record(ConfigurationPathSchema, ConfigurationPathSchema).default({}),
+            refreshField: ConfigurationPathSchema.optional(),
+            refreshIntervalMs: z.number().int().min(1000).optional()
+          })
+          .strict()
+      )
+      .default([])
   })
   .strict()
 export const ResourceCallSchema = z
@@ -100,4 +137,8 @@ export type ResourceMapping = z.infer<typeof ResourceMappingSchema>
 
 export function resourceCapability(id: string, protocol: string, method: string) {
   return 'resource:' + id + '/' + protocol + '/' + method
+}
+
+export function resourceInputSchema(schema: z.ZodType) {
+  return z.toJSONSchema(schema, { io: 'input' })
 }

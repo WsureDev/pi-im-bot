@@ -3,7 +3,7 @@ import type { ChatMessage, Room } from '../domain/message'
 import type { ChannelRegistry } from '../channels/registry'
 import type { StateStore } from '../storage/state'
 import type { EventHub } from './events'
-import type { Outbound } from '../domain/delivery'
+import { OutboundSchema, type Outbound } from '../domain/delivery'
 import { PartialDelivery, SendBlocked } from '../domain/channel-media'
 import type { ArtifactStore } from '../artifacts/store'
 import { prepareMedia } from '../artifacts/delivery'
@@ -31,6 +31,7 @@ export interface DeliveryOptions {
   beforePart?(): void | Promise<void>
   format?: 'direct' | 'forward'
   itemized?: boolean
+  forwardMessages?: Outbound['forwardMessages']
   presentation?: DeliveryPresentation
 }
 
@@ -45,6 +46,10 @@ export class DeliveryService {
     private readonly events: EventHub,
     private readonly artifacts?: (roomId: string) => ArtifactStore
   ) {}
+
+  async identity(address: Room['address'], signal: AbortSignal) {
+    return this.channels.get(address.channel).identity?.(address, signal)
+  }
 
   async send(
     room: Room,
@@ -89,7 +94,8 @@ export class DeliveryService {
         existing.conversationId !== room.currentConversationId ||
         JSON.stringify(existing.requestedArtifactIds ?? existing.artifactIds) !==
           JSON.stringify(artifactIds) ||
-        existing.presentationKey !== options.presentation?.key
+        existing.presentationKey !== options.presentation?.key ||
+        JSON.stringify(existing.forwardMessages) !== JSON.stringify(options.forwardMessages)
       ) {
         throw new Error('交付幂等键与已有操作不匹配')
       }
@@ -136,6 +142,7 @@ export class DeliveryService {
       text,
       format: options.format,
       itemized: options.itemized,
+      forwardMessages: options.forwardMessages,
       effectiveFormat: 'direct',
       deliveryParts: [],
       attachments: [],
@@ -273,7 +280,17 @@ export class DeliveryService {
         (artifactIds, platformMessageIds) => {
           outbound.deliveryParts = [...(outbound.deliveryParts ?? []), { artifactIds, platformMessageIds }]
           this.store.saveOutbound(outbound, this.observation(options, outbound))
-        }
+        },
+        outbound.forwardMessages?.map((part) => {
+          const media = prepared.media.filter((file) => {
+            return part.artifactIds.includes(file.id)
+          })
+          let text = part.text
+          if (media.length < part.artifactIds.length) {
+            text += '\n附件受平台支持或大小限制，可在 Web 下载。'
+          }
+          return { text, media }
+        })
       )
       const completed: Outbound = {
         ...outbound,
@@ -408,12 +425,19 @@ export class DeliveryService {
   async completeRender(
     room: Room,
     id: string,
-    result: { text: string; artifactIds: string[] } | undefined,
+    result: { text: string; artifactIds: string[]; messages?: Outbound['renderedMessages'] } | undefined,
     options: DeliveryOptions
   ) {
     const outbound = this.store.getOutbound(id)
     if (!outbound?.render) {
       throw new Error('呈现计划不存在')
+    }
+    if (
+      !result &&
+      outbound.state === 'rendering' &&
+      (outbound.platformMessageIds.length || outbound.renderedMessages?.length)
+    ) {
+      throw new DeliveryUncertain('部分呈现已开始，不再重发完整原文')
     }
     if (outbound.state === 'rendering') {
       await options.beforePart?.()
@@ -421,8 +445,13 @@ export class DeliveryService {
         ...outbound,
         renderedText: result?.text ?? outbound.renderedText ?? outbound.text,
         artifactIds: result?.artifactIds ?? outbound.requestedArtifactIds ?? [],
+        renderedMessages: result?.messages,
         state: 'prepared'
       })
+    }
+    const saved = this.store.getOutbound(id)!
+    if (saved.renderedMessages?.length) {
+      return this.completeMessageSequence(room, saved, options)
     }
     return this.send(room, outbound.text, outbound.runId, outbound.role, id, {
       ...options,
@@ -435,6 +464,186 @@ export class DeliveryService {
         validate: options.presentation?.validate ?? (() => {})
       }
     })
+  }
+
+  async sendMessages(
+    room: Room,
+    parts: NonNullable<Outbound['renderedMessages']>,
+    runId: string | undefined,
+    id: string,
+    options: DeliveryOptions
+  ) {
+    let outbound = this.store.getOutbound(id)
+    if (outbound) {
+      if (outbound.state === 'rendering') {
+        outbound = { ...outbound, renderedMessages: parts, state: 'prepared' }
+        this.store.saveOutbound(outbound)
+      } else if (JSON.stringify(outbound.renderedMessages) !== JSON.stringify(parts)) {
+        throw new Error('原消息序列内容已固定')
+      }
+    } else {
+      outbound = OutboundSchema.parse({
+        id,
+        roomId: room.id,
+        conversationId: room.currentConversationId,
+        runId,
+        text: parts
+          .map((part) => {
+            return part.text
+          })
+          .join('\n'),
+        renderedMessages: parts,
+        role: 'assistant',
+        state: 'prepared',
+        messageId: crypto.randomUUID(),
+        createdAt: Date.now()
+      })
+      this.store.saveOutbound(outbound)
+    }
+    return this.completeMessageSequence(room, outbound, options)
+  }
+
+  async progressMessages(
+    room: Room,
+    parts: NonNullable<Outbound['renderedMessages']>,
+    runId: string | undefined,
+    id: string,
+    options: DeliveryOptions
+  ) {
+    await options.beforePart?.()
+    let parent = this.store.getOutbound(id)
+    if (!parent) {
+      parent = OutboundSchema.parse({
+        id,
+        roomId: room.id,
+        conversationId: room.currentConversationId,
+        runId,
+        text: '',
+        role: 'assistant',
+        state: 'rendering',
+        messageId: crypto.randomUUID(),
+        createdAt: Date.now()
+      })
+      this.store.saveOutbound(parent)
+    }
+    for (const part of parts) {
+      if (!part.key) {
+        throw new Error('进度消息必须有稳定键')
+      }
+      if (!part.text && !part.artifactIds.length) {
+        continue
+      }
+      await options.beforePart?.()
+      const before = this.store.getOutbound(id)!
+      if (before.cancelRequested || before.state !== 'rendering') {
+        throw new DeliveryCancelled('进度交付已停止')
+      }
+      const known = before.renderedMessages ?? []
+      const previous = known.find((entry) => {
+        return entry.key === part.key
+      })
+      if (previous && JSON.stringify(previous) !== JSON.stringify(part)) {
+        throw new Error('已登记进度消息不可更改')
+      }
+      if (!previous) {
+        this.store.saveOutbound({ ...before, renderedMessages: [...known, part] })
+      }
+      try {
+        await this.send(room, part.text, parent.runId, parent.role, id + ':part:' + part.key, {
+          artifactIds: part.artifactIds,
+          beforePart: options.beforePart,
+          authorize: options.authorize
+        })
+      } catch (error) {
+        await options.beforePart?.()
+        if (error instanceof DeliveryCancelled) {
+          throw error
+        }
+        const child = this.store.getOutbound(id + ':part:' + part.key)
+        if (!child || !['unknown', 'sending', 'failed'].includes(child.state)) {
+          throw error
+        }
+      }
+      const latest = this.store.getOutbound(id)!
+      const child = this.store.getOutbound(id + ':part:' + part.key)
+      this.store.saveOutbound({
+        ...latest,
+        platformMessageIds: [...new Set([...latest.platformMessageIds, ...(child?.platformMessageIds ?? [])])]
+      })
+    }
+  }
+
+  private async completeMessageSequence(room: Room, original: Outbound, options: DeliveryOptions) {
+    if (original.state === 'sent') {
+      const message = this.store.getMessage(original.messageId)
+      if (message) {
+        return message
+      }
+      throw new Error('原消息序列已发送，记录不可用；不重发')
+    }
+    if (['unknown', 'sending'].includes(original.state)) {
+      throw new DeliveryUncertain('消息序列发送结果待核对，不重发')
+    }
+    if (original.cancelRequested || ['cancelled', 'suppressed'].includes(original.state)) {
+      throw new DeliveryCancelled('原消息序列已停止')
+    }
+    const check = async () => {
+      const current = this.store.getOutbound(original.id)
+      if (current?.cancelRequested || current?.state === 'cancelled') {
+        throw new DeliveryCancelled('原消息序列已停止')
+      }
+      await options.beforePart?.()
+    }
+    await check()
+    const outbound: Outbound = {
+      ...original,
+      state: 'sending',
+      platformMessageIds: [...original.platformMessageIds]
+    }
+    this.store.saveOutbound(outbound)
+    let first: ChatMessage | undefined
+    try {
+      for (const [index, part] of (original.renderedMessages ?? []).entries()) {
+        if (!part.text && !part.artifactIds.length) {
+          continue
+        }
+        await check()
+        const message = await this.send(
+          room,
+          part.text,
+          original.runId,
+          original.role,
+          original.id + ':part:' + (part.key ?? index),
+          { artifactIds: part.artifactIds, beforePart: check, authorize: options.authorize }
+        )
+        first ??= message
+        outbound.platformMessageIds = [
+          ...new Set([...outbound.platformMessageIds, ...message.platformMessageIds])
+        ]
+        outbound.deliveryParts = (original.renderedMessages ?? []).flatMap((entry, position) => {
+          const child = this.store.getOutbound(original.id + ':part:' + (entry.key ?? position))
+          if (!child?.platformMessageIds.length) {
+            return []
+          }
+          return [{ artifactIds: child.artifactIds, platformMessageIds: child.platformMessageIds }]
+        })
+        outbound.messageId = first.id
+        this.store.saveOutbound(outbound)
+      }
+      if (!first) {
+        throw new Error('消息序列没有可交付内容')
+      }
+      await check()
+      this.store.saveOutbound({ ...outbound, state: 'sent', sentAt: Date.now() })
+      return first
+    } catch (error) {
+      let state: Outbound['state'] = 'unknown'
+      if (error instanceof DeliveryCancelled || this.store.getOutbound(original.id)?.cancelRequested) {
+        state = 'cancelled'
+      }
+      this.store.saveOutbound({ ...outbound, state, error: '消息序列未完整确认，保留各段回执，不重新发送' })
+      throw error
+    }
   }
 
   private notify(options: DeliveryOptions, outbound: Outbound) {

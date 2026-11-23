@@ -1,6 +1,6 @@
 import type { Context } from '@earendil-works/chord/context'
 import type { Coordinator } from '../../runtime/coordinator'
-import type { DurableAgentRuntime } from '../../agent/durable/runtime'
+import type { AgentRuntime } from '../../agent/runtime'
 import { RunLimiter } from '../../runtime/limiter'
 import { projectHistory } from '../../messages/projection'
 import { pluginHookId } from '../identity'
@@ -13,10 +13,10 @@ export class ObservationWorker {
   private readonly actions = new RunLimiter(2)
   constructor(
     private readonly coordinator: Coordinator,
-    private readonly runtime: DurableAgentRuntime,
+    private readonly runtime: AgentRuntime,
     private readonly admit: (
       input: ObserverTaskInput,
-      conversation: Awaited<ReturnType<DurableAgentRuntime['ensureConversation']>>
+      conversation: Awaited<ReturnType<AgentRuntime['ensureConversation']>>
     ) => Promise<number | undefined>,
     private readonly wake: () => void
   ) {

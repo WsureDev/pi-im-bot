@@ -1,4 +1,7 @@
 import { validateComfyDelivery } from './comfy-delivery'
+import { pluginActionCapabilities } from './action-capabilities'
+import { assertArtifactDeliveryAccess } from './artifact-access'
+import { resolveResource } from '../resource-providers/registry'
 import type { Settings } from '../settings/schema'
 import { namedService, serviceRevision } from '../services/resources'
 import type { Configuration } from '../config/load'
@@ -206,7 +209,10 @@ export class PluginService {
     if (
       entry.operation.data !== 'none' ||
       entry.operation.execution !== 'background' ||
-      entry.operation.grants.some((grant) => !grant.startsWith('service:') && grant !== 'artifact.write')
+      entry.operation.grants.some(
+        (grant) =>
+          !grant.startsWith('service:') && !grant.startsWith('resource:') && grant !== 'artifact.write'
+      )
     ) {
       throw new Error('短时呈现只允许无私有数据、无再次发送能力的服务渲染操作')
     }
@@ -214,6 +220,9 @@ export class PluginService {
   }
 
   validateInlinePresentation(invocation: PluginInvocation, plan: RenderPlan) {
+    assertArtifactDeliveryAccess(this.configuration(), plan.access, (id) => {
+      return invocation.services.media?.require(id)
+    })
     const entry = this.operation(invocation, plan.capability)
     const current = this.authorize(invocation, entry)
     if (this.configuration().resources.pluginPackage(current.id)?.revision !== entry.bundle.revision) {
@@ -253,7 +262,7 @@ export class PluginService {
   ): Promise<PluginOperationOutcome> {
     const entry = this.operation(invocation, capability)
     this.authorize(invocation, entry)
-    for (const action of entry.operation.actions) {
+    for (const action of pluginActionCapabilities(entry)) {
       invocation.services.authorize(action)
     }
     let handler = entry.operation.id
@@ -289,7 +298,7 @@ export class PluginService {
       )
     )
     this.authorize(invocation, entry)
-    for (const action of entry.operation.actions) {
+    for (const action of pluginActionCapabilities(entry)) {
       invocation.services.authorize(action)
     }
     return PluginOperationOutcomeSchema.parse(result)
@@ -390,6 +399,7 @@ export class PluginService {
       })
     )
     const context = pluginInvocationView(invocation, entry, input, grants, timeoutMs, callId)
+    context.phase = action.phase
     context.actors = context.actors.map((actor, index) => {
       return {
         ...actor,
@@ -419,6 +429,28 @@ export class PluginService {
         connectionRevision(current.settings) !== connectionRevision(entry.instance.settings)
       ) {
         throw new Error('资源连接配置已变化，原调用不能切换连接继续执行')
+      }
+      if (grant.startsWith('resource:')) {
+        const alias = grant.slice(9)
+        const id = entry.instance.resources[alias]
+        const dependency = entry.bundle.manifest.resources.find((item) => {
+          return item.alias === alias
+        })
+        if (
+          !id ||
+          !dependency ||
+          current.resources[alias] !== id ||
+          resolveResource(invocation.config.resources.config, id, dependency.protocol, dependency.methods[0])
+            .revision !==
+            resolveResource(
+              this.configuration().resources.config,
+              id,
+              dependency.protocol,
+              dependency.methods[0]
+            ).revision
+        ) {
+          throw new Error('资源绑定或配置已变更')
+        }
       }
       if (grant.startsWith('service:')) {
         const alias = grant.slice(8)

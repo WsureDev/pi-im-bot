@@ -12,7 +12,12 @@ const KeySchema = z
     return !['__proto__', 'prototype', 'constructor', '__entry_id', '__template_key'].includes(key)
   }, '配置字段使用了保留名称')
 const CommonFieldSchema = z.object({
-  type: z.enum(['string', 'text', 'int', 'float', 'bool', 'object', 'list', 'dict', 'template_list']),
+  title: z.string().max(300).optional(),
+  type: z.enum(['string', 'text', 'int', 'float', 'bool', 'object', 'list', 'dict', 'template_list', 'file']),
+  file_types: z
+    .array(z.enum(['png', 'jpg', 'jpeg']))
+    .max(3)
+    .optional(),
   description: z.string().max(300).default(''),
   hint: z.string().max(3000).optional(),
   default: z.json().optional(),
@@ -21,11 +26,8 @@ const CommonFieldSchema = z.object({
   invisible: z.boolean().default(false),
   readonly: z.boolean().default(false),
   obvious_hint: z.boolean().default(false),
-  options: z
-    .array(z.union([z.string().max(4000), z.number()]))
-    .max(1000)
-    .optional(),
-  labels: z.array(z.string().max(1000)).max(1000).optional(),
+  options: z.array(z.union([z.string().max(4000), z.number()])).optional(),
+  labels: z.array(z.string().max(1000)).optional(),
   slider: z.object({ min: z.number(), max: z.number(), step: z.number().positive() }).strict().optional(),
   min: z.number().optional(),
   max: z.number().optional(),

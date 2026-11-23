@@ -37,8 +37,7 @@ async function fixture() {
         }
       ],
       groups: [{ id: 'main', candidates: [{ provider: 'test', model: 'test' }] }]
-    }),
-    root
+    })
   )
   const config = {
     bot: BotConfigSchema.parse({}),

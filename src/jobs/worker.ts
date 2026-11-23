@@ -86,6 +86,7 @@ export class JobWorker {
     )
     const context = {
       ...value.context,
+      runId: value.runId,
       effective,
       authority,
       conversationId,
@@ -401,8 +402,24 @@ export class JobWorker {
       this.service.changed(await this.service.repository.get(jobId))
       return
     }
+    if (
+      value.state !== 'succeeded' &&
+      !value.result?.artifactIds.length &&
+      (value.operationResponse === 'complete' ||
+        (value.operationResponse === 'checkpoint' && !value.operationCheckpoint))
+    ) {
+      await runtime.commit(async (tx) => {
+        await this.service.repository.change(tx, jobId, revision, (current) => {
+          current.delivery = 'none'
+        })
+        await releaseSchedule(tx, value.schedule, jobId)
+        return { status: 'terminal', outcome: { status: 'completed', result: { jobId, revision } } }
+      }, context)
+      this.service.changed(await this.service.repository.get(jobId))
+      return
+    }
     const parent = this.service.coordinator.store.getRun(value.sourceRunId)
-    if (parent && ['batching', 'queued', 'running'].includes(parent.status)) {
+    if (!value.operationResponse && parent && ['batching', 'queued', 'running'].includes(parent.status)) {
       await runtime.sleepUntil(Date.now() + 100, { phase: 'report' }, context)
       return
     }
@@ -448,38 +465,59 @@ export class JobWorker {
             producer = 'scheduled-agent'
           }
         }
-        await this.service.coordinator.delivery.send(
-          this.service.coordinator.requireRoom(job.roomId),
-          text,
-          value.runId,
-          'assistant',
-          `job:${jobId}:${revision}:result`,
-          {
-            artifactIds: value.result?.artifactIds,
-            format: value.result?.format,
-            itemized: value.result?.itemized,
-            authorize: (capability) => {
-              this.service.coordinator.authorizeRetainedContext(
-                job.roomId,
-                value.mode,
-                value.context,
-                capability
+        if (value.result?.messages && value.result.format !== 'forward') {
+          await this.service.coordinator.delivery.sendMessages(
+            this.service.coordinator.requireRoom(job.roomId),
+            value.result.messages,
+            value.runId,
+            `job:${jobId}:${revision}:result`,
+            {
+              beforePart,
+              authorize: (capability) => {
+                this.service.coordinator.authorizeRetainedContext(
+                  job.roomId,
+                  value.mode,
+                  value.context,
+                  capability
+                )
+              }
+            }
+          )
+        } else {
+          await this.service.coordinator.delivery.send(
+            this.service.coordinator.requireRoom(job.roomId),
+            text,
+            value.runId,
+            'assistant',
+            `job:${jobId}:${revision}:result`,
+            {
+              artifactIds: value.result?.artifactIds,
+              format: value.result?.format,
+              itemized: value.result?.itemized,
+              forwardMessages: value.result?.messages,
+              authorize: (capability) => {
+                this.service.coordinator.authorizeRetainedContext(
+                  job.roomId,
+                  value.mode,
+                  value.context,
+                  capability
+                )
+              },
+              beforePart,
+              presentation: this.service.coordinator.presentation(
+                invocation.config,
+                invocation.room,
+                invocation.input,
+                `job:${jobId}:${revision}:result`,
+                'notification',
+                runtime.signal,
+                undefined,
+                producer,
+                value.spec.kind === 'agent'
               )
-            },
-            beforePart,
-            presentation: this.service.coordinator.presentation(
-              invocation.config,
-              invocation.room,
-              invocation.input,
-              `job:${jobId}:${revision}:result`,
-              'notification',
-              runtime.signal,
-              undefined,
-              producer,
-              value.spec.kind === 'agent'
-            )
-          }
-        )
+            }
+          )
+        }
       }
     } catch (error) {
       deliveryError = this.service.coordinator.publicError(error)

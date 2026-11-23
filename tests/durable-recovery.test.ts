@@ -57,8 +57,7 @@ test('host shutdown resumes an admitted durable run with its pinned Persona and 
           }
         ],
         groups: [{ id: 'main', candidates: [{ provider: 'test', model: 'test' }] }]
-      }),
-      root
+      })
     )
     const config = {
       bot: BotConfigSchema.parse({}),

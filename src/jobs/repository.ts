@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import type { Tx } from '@earendil-works/pi-durable'
-import type { DurableAgentRuntime } from '../agent/durable/runtime'
+import type { AgentRuntime } from '../agent/runtime'
 import { Jobs } from './documents'
 import { JobActivity, initializeJobIndex, indexJob, jobOutstanding } from './index'
 import { JobHistoryPage, historyScope, historyPageKey, linkedHistory } from './history'
@@ -20,7 +20,7 @@ interface JobHistoryResult {
 
 export class JobRepository {
   private ready?: Promise<void>
-  constructor(private readonly runtime: DurableAgentRuntime) {}
+  constructor(private readonly runtime: AgentRuntime) {}
 
   initialize() {
     this.ready ??= this.runtime.native

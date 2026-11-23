@@ -6,7 +6,7 @@ import type { Configuration } from '../config/load'
 import type { Room } from '../domain/message'
 import type { PreparedRunInput } from '../domain/run'
 import type { Coordinator } from '../runtime/coordinator'
-import type { DurableAgentRuntime } from '../agent/durable/runtime'
+import type { AgentRuntime } from '../agent/runtime'
 import { Jobs, JobFacts } from './documents'
 import { JobRequests, JobAdmissions, initializeJobIndex } from './index'
 import { JobRepository } from './repository'
@@ -31,6 +31,7 @@ import { PluginJobRunner } from '../plugins/jobs/runner'
 import type { Outbound } from '../domain/delivery'
 import { RenderAdmissionRejected, RenderRejectionSchema, type RenderRejection } from '../domain/rendering'
 import { serviceOperationBudget } from '../plugins/operation-budget'
+import { pluginActionCapabilities } from '../plugins/action-capabilities'
 import type { PluginOperationEntry } from '../plugins/registry'
 import {
   providedResource,
@@ -63,14 +64,15 @@ export class JobService {
   private readonly reconciliation = new Map<string, Promise<JobSummary>>()
 
   constructor(
-    readonly runtime: DurableAgentRuntime,
+    readonly runtime: AgentRuntime,
     readonly coordinator: Coordinator
   ) {
     this.repository = new JobRepository(runtime)
     if (coordinator.plugins) {
       coordinator.plugins.managed = {
         state: new PluginStateStore(runtime),
-        comfy: new ComfyBroker(runtime, this.repository)
+        comfy: new ComfyBroker(runtime, this.repository),
+        resources: { runtime, jobs: this.repository }
       }
     }
     this.external = new ExternalJobRunner(this)
@@ -96,9 +98,10 @@ export class JobService {
 
   forInvocation(invocation: JobInvocation, entrySurface: 'tool' | 'command' = 'tool'): JobToolServices {
     const roomId = invocation.room.id
+    const ownedOperations = new Set<string>()
     return {
-      operation: (title, capability, args, callId) => {
-        return this.admit(
+      operation: async (title, capability, args, callId) => {
+        const job = await this.admit(
           invocation,
           title,
           { kind: 'tool', capability, arguments: args },
@@ -106,6 +109,34 @@ export class JobService {
           undefined,
           { operationOwned: true, entrySurface }
         )
+        ownedOperations.add(job.id)
+        if (entrySurface === 'tool') {
+          this.coordinator.recordInvokedCapability(invocation.runId, capability)
+        }
+        return job
+      },
+      waitOperation: async (id, signal, mode = 'complete') => {
+        if (!ownedOperations.has(id)) {
+          throw new Error('只能等待本次工具接纳的操作')
+        }
+        for (;;) {
+          signal.throwIfAborted()
+          const job = await this.repository.get(id, roomId)
+          this.checkChildControl(invocation, job)
+          const summary = jobSummary(job)
+          if (mode === 'checkpoint' && job.revisions[String(job.currentRevision)].operationCheckpoint) {
+            return summary
+          }
+          if (jobTerminal(summary.state) && !['pending', 'accepted'].includes(summary.delivery)) {
+            return summary
+          }
+          await awaitWithContext(
+            new Promise<void>((resolve) => {
+              setTimeout(resolve, 100)
+            }),
+            withAbortSignal(signal, BACKGROUND_CONTEXT)
+          )
+        }
       },
       start: (title, spec, callId, messageIds) => {
         return this.start(invocation, title, spec, callId, messageIds, entrySurface)
@@ -164,7 +195,11 @@ export class JobService {
     sourceMessageIds?: string[],
     entrySurface: 'tool' | 'command' = 'command'
   ): Promise<JobSummary> {
-    return this.admit(invocation, title, spec, callId, sourceMessageIds, { entrySurface })
+    const admitted = await this.admit(invocation, title, spec, callId, sourceMessageIds, { entrySurface })
+    if (entrySurface === 'tool' && spec.kind === 'tool') {
+      this.coordinator.recordInvokedCapability(invocation.runId, spec.capability)
+    }
+    return admitted
   }
 
   async present(outbound: Outbound) {
@@ -385,11 +420,22 @@ export class JobService {
       childConversationId: 'job:' + id + ':1',
       runId: crypto.randomUUID()
     })
-    if (parentId && !detached) {
+    if (parentId && !detached && !operation?.operation.ownsDelivery) {
       value.delivery = 'none'
     }
+    if (operation && value.context.entrySurface === 'tool') {
+      const wait = operation.operation.toolWaitWhen
+      if (wait && spec.kind === 'tool' && (spec.arguments[wait.field] ?? wait.defaultValue) === wait.equals) {
+        value.operationResponse = 'complete'
+      } else if (operation.operation.toolWaitForCheckpoint) {
+        value.operationResponse = 'checkpoint'
+      }
+    }
     if (spec.kind === 'tool' && spec.capability.startsWith('plugin:')) {
-      value.requiredActions = operation?.operation.actions ?? []
+      value.requiredActions = []
+      if (operation) {
+        value.requiredActions = pluginActionCapabilities(operation)
+      }
       for (const action of value.requiredActions) {
         invocation.authorize(action)
       }

@@ -2,6 +2,9 @@ import { compile } from '@earendil-works/pi-schema'
 import type { ResourceInstance, ResourceProtocol, ProviderDefinition } from './protocol'
 import { imageLibraryProtocol, xImageProvider } from './protocols/image-library'
 import { comfyGatewayProtocol, comfyGatewayProvider } from './protocols/comfy-gateway'
+import { gsviProtocol, gsviProvider } from './protocols/gsvi'
+import { comfyWorkflowsProtocol, comfyWorkflowsProvider } from './protocols/comfy-workflows'
+import { modelProtocol, modelProvider } from './protocols/model'
 import { revision } from '../settings/resolve'
 
 export interface ResourceDefinitions {
@@ -9,9 +12,31 @@ export interface ResourceDefinitions {
   resourceProtocols: ResourceProtocol[]
   providerDefinitions: ProviderDefinition[]
 }
+export function resourceExecutionRevision(
+  instance: ResourceInstance,
+  provider: ProviderDefinition,
+  protocol: ResourceProtocol | undefined
+) {
+  const { name: _name, ...execution } = instance
+  return revision({ instance: execution, provider, protocol })
+}
 export function resourceDefinitions(config: ResourceDefinitions) {
-  const protocols = [imageLibraryProtocol, comfyGatewayProtocol, ...config.resourceProtocols]
-  const providers = [xImageProvider, comfyGatewayProvider, ...config.providerDefinitions]
+  const protocols = [
+    imageLibraryProtocol,
+    comfyGatewayProtocol,
+    gsviProtocol,
+    comfyWorkflowsProtocol,
+    modelProtocol,
+    ...config.resourceProtocols
+  ]
+  const providers = [
+    xImageProvider,
+    comfyGatewayProvider,
+    gsviProvider,
+    comfyWorkflowsProvider,
+    modelProvider,
+    ...config.providerDefinitions
+  ]
   for (const entries of [protocols, providers, config.providers]) {
     if (
       new Set(
@@ -61,7 +86,8 @@ export function resolveResource(
   config: ResourceDefinitions,
   id: string,
   protocolId: string,
-  methodId: string
+  methodId: string,
+  requireEnabled = true
 ) {
   const definitions = resourceDefinitions(config)
   const instance = config.providers.find((item) => {
@@ -79,7 +105,7 @@ export function resolveResource(
   const mapping = provider?.mappings.find((item) => {
     return item.protocol === protocolId && item.method === methodId
   })
-  if (!instance?.enabled || !provider || !protocol || !method || !mapping) {
+  if (!instance || (requireEnabled && !instance.enabled) || !provider || !protocol || !method || !mapping) {
     throw new Error('资源未启用、未绑定或不支持所需协议方法')
   }
   return {
@@ -88,6 +114,6 @@ export function resolveResource(
     protocol,
     method,
     mapping,
-    revision: revision({ instance, provider, protocol })
+    revision: resourceExecutionRevision(instance, provider, protocol)
   }
 }

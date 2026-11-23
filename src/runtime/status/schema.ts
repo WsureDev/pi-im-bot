@@ -1,7 +1,9 @@
 import { z } from 'zod'
+import { LinuxMetricsSchema } from './linux-schema'
 
 const BytesSchema = z.number().finite().nonnegative()
 export const GpuDeviceSchema = z.object({
+  id: z.string().optional(),
   index: z.number().int().nonnegative(),
   name: z.string().max(300),
   memoryTotalBytes: BytesSchema,
@@ -11,8 +13,8 @@ export const GpuDeviceSchema = z.object({
   powerWatts: z.number().finite().nonnegative().nullable()
 })
 export const GpuStatusSchema = z.object({
-  provider: z.literal('nvidia'),
-  source: z.literal('nvidia-smi'),
+  provider: z.enum(['nvidia', 'amd', 'mixed']),
+  source: z.enum(['nvidia-smi', 'sysfs', 'nvidia-smi+sysfs']),
   devices: z.array(GpuDeviceSchema).min(1).max(16)
 })
 export type GpuStatus = z.infer<typeof GpuStatusSchema>
@@ -24,11 +26,14 @@ export const RuntimeStatusSchema = z.object({
     platform: z.string(),
     architecture: z.string(),
     kernel: z.string(),
+    timezone: z.string().optional(),
     uptimeSeconds: z.number().nonnegative()
   }),
   cpu: z.object({
     model: z.string().max(300),
     logicalCpus: z.number().int().positive(),
+    physicalCpus: z.number().int().positive().nullable().optional(),
+    currentMHz: z.number().positive().nullable().optional(),
     usagePercent: z.number().min(0).max(100).nullable(),
     sampleMs: z.number().positive(),
     loadAverage: z.tuple([z.number(), z.number(), z.number()])
@@ -56,6 +61,7 @@ export const RuntimeStatusSchema = z.object({
     })
     .nullable(),
   gpu: GpuStatusSchema.nullable(),
+  linux: LinuxMetricsSchema.nullable().default(null),
   bot: z.object({
     name: z.string(),
     version: z.string(),

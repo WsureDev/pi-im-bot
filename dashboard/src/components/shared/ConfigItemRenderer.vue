@@ -16,6 +16,13 @@
       :aria-label="itemMeta.description || configKey"
       hide-details
     />
+    <ConfigFileItem
+      v-else-if="itemMeta?.type === 'file'"
+      :model-value="inputValue"
+      :field="configPointer"
+      :file-types="itemMeta.file_types"
+      @update:model-value="emitUpdate"
+    />
     <ListConfigItem
       v-else-if="itemMeta?.secret && itemMeta.type === 'list'"
       :model-value="inputValue"
@@ -252,6 +259,7 @@
 <script setup>
 import { VueMonacoEditor } from '@/composables/monaco'
 import ListConfigItem from './ListConfigItem.vue'
+import ConfigFileItem from './ConfigFileItem.vue'
 import ObjectEditor from './ObjectEditor.vue'
 import { computed, ref, inject, watch } from 'vue'
 import { useTheme } from 'vuetify'
@@ -263,13 +271,22 @@ const configuration = inject(ConfigurationKey, null)
 const inputValue = computed(() => {
   if (props.itemMeta?.secret && configuration) {
     const saved = configuration.draft.secrets[props.configPointer]
-    if (saved) { return saved.value }
-    if (props.itemMeta.type === 'list') { return [] }
+    if (saved) {
+      return saved.value
+    }
+    if (props.itemMeta.type === 'list') {
+      return []
+    }
     return ''
   }
   return props.modelValue
 })
-watch(() => configuration?.view.revision, () => { secretVisible.value = false })
+watch(
+  () => configuration?.view.revision,
+  () => {
+    secretVisible.value = false
+  }
+)
 const numericTemp = ref(null)
 const theme = useTheme()
 const editorTheme = computed(() => {
@@ -335,9 +352,13 @@ const { configText } = usePluginI18n()
 function emitUpdate(val) {
   if (props.itemMeta?.secret && configuration) {
     let value = val ?? ''
-    if (props.itemMeta.type === 'list' && !Array.isArray(value)) { value = [] }
+    if (props.itemMeta.type === 'list' && !Array.isArray(value)) {
+      value = []
+    }
     let action = 'set'
-    if (value.length === 0) { action = 'clear' }
+    if (value.length === 0) {
+      action = 'clear'
+    }
     configuration.draft.secrets[props.configPointer] = { action, value }
     return
   }

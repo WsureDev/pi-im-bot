@@ -37,7 +37,7 @@ export interface HookSelector {
   phase?: string
 }
 
-const reservedCommands = new Set(['help', 'status', 'stop', 'new', 'skills', 'skill', 'jobs', 'job'])
+const reservedCommands = new Set(['help', 'botstatus', 'stop', 'new', 'skills', 'skill', 'jobs', 'job'])
 
 export class PluginRegistry {
   readonly points = new Map<string, PluginPoint>()

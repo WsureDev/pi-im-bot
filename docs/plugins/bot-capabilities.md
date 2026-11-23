@@ -9,18 +9,18 @@ const status = RuntimeStatusSchema.parse(await context.host('system.status', {})
 context.signal.throwIfAborted()
 ```
 
-| 方法                        | 操作/handler 与实例需要的 grant | 参数                                       | 返回与附加限制                                                                            |
-| --------------------------- | ------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| 方法                        | 操作/handler 与实例需要的 grant | 参数                                       | 返回与附加限制                                                                                   |
+| --------------------------- | ------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
 | system.status               | system.status                   | 严格空对象 `{}`                            | RuntimeStatusSchema（含可选 GPU/显存摘要）；另需触发权限 runtime_status，读取 Bot 控制面可见指标 |
-| history.read                | history.read                    | limit 1–100，默认 20                       | 当前范围经过投影的消息数组；另需 chat_history                                             |
-| artifact.read               | artifact.read                   | id、offset≥0、limit≤196608，默认 65536     | id/mimeType/bytes/offset/base64/hasMore；仅当前范围，另需 artifact_read                   |
-| artifact.write              | artifact.write                  | name、mimeType、encoding=text/base64、data | id/name/mimeType/bytes；data 最多 300000 字符，单次调用累计 12 项/8 MiB，再受统一额度约束 |
-| artifact.publish            | artifact.write                  | 相对 path、可选 name、mimeType             | id/name/mimeType/bytes/sha256；从当前活动私有卷打开普通文件，不跟随符号链接，流式复制     |
-| delivery.send               | delivery.send                   | text≤20000、artifactIds≤8                  | id/platformMessageIds；另需 chat_send，一次调用最多额外发送 8 次；经过统一交付            |
-| delivery.recall             | delivery.recall                 | messageId、delayMs 0–86400000              | taskId；另需 message_recall，仅在已注册撤回服务的上下文可用，当前为本次已确认回执观察     |
-| connector:别名              | connector:别名                  | tool、arguments 对象                       | text/artifactIds/isError；只能调用已绑定 MCP，另需对应 mcp:服务/工具 权限                 |
-| operation:依赖别名/操作     | 同名 operation:… grant          | arguments、phase=execute/poll/cancel       | done/pending/failed/cancelled；需显式实例依赖与目标操作权限                               |
-| point:plugin.self.名称@版本 | 同名 point:… grant              | value 对象                                 | 按 point 模式返回；只能由拥有者操作启动自己的 point                                       |
+| history.read                | history.read                    | limit 1–100，默认 20                       | 当前范围经过投影的消息数组；另需 chat_history                                                    |
+| artifact.read               | artifact.read                   | id、offset≥0、limit≤196608，默认 65536     | id/mimeType/bytes/offset/base64/hasMore；仅当前范围，另需 artifact_read                          |
+| artifact.write              | artifact.write                  | name、mimeType、encoding=text/base64、data | id/name/mimeType/bytes；data 最多 300000 字符，单次调用累计 12 项/8 MiB，再受统一额度约束        |
+| artifact.publish            | artifact.write                  | 相对 path、可选 name、mimeType             | id/name/mimeType/bytes/sha256；从当前活动私有卷打开普通文件，不跟随符号链接，流式复制            |
+| delivery.send               | delivery.send                   | text≤20000、artifactIds≤8                  | id/platformMessageIds；另需 chat_send，一次调用最多额外发送 8 次；经过统一交付                   |
+| delivery.recall             | delivery.recall                 | messageId、delayMs 0–86400000              | taskId；另需 message_recall，仅在已注册撤回服务的上下文可用，当前为本次已确认回执观察            |
+| connector:别名              | connector:别名                  | tool、arguments 对象                       | text/artifactIds/isError；只能调用已绑定 MCP，另需对应 mcp:服务/工具 权限                        |
+| operation:依赖别名/操作     | 同名 operation:… grant          | arguments、phase=execute/poll/cancel       | done/pending/failed/cancelled；需显式实例依赖与目标操作权限                                      |
+| point:plugin.self.名称@版本 | 同名 point:… grant              | value 对象                                 | 按 point 模式返回；只能由拥有者操作启动自己的 point                                              |
 
 输入额外字段会被相应严格 schema 拒绝。尤其 system.status 不接受路径、环境变量、命令、任意地址或远端目标。
 
@@ -28,7 +28,7 @@ context.signal.throwIfAborted()
 
 ## 状态观测的准确含义
 
-system.status 的 observer 固定为 bot-control-plane。返回 OS 可见 CPU/内存、swap、Bot 数据所在文件系统、可见网络接口累计计数、Bot 进程用量及插件/Provider/模型数量。GPU 摘要包含 NVIDIA 型号、显存总量/已用、利用率、温度和功耗。没有 hostname、IP、绝对路径、环境变量、配置正文或凭据。
+system.status 的 observer 固定为 bot-control-plane。返回 OS 可见 CPU/内存、swap、Bot 数据所在文件系统、可见网络接口累计计数、Bot 进程用量及插件/Provider/模型数量。GPU 摘要包含 NVIDIA／AMD 型号、显存总量/已用、利用率、温度和功耗。Linux 扩展提供逐核 CPU、磁盘 I/O、逐网卡速率、温度、压力和挂载点容量，其中包含设备及挂载路径；不包含 IP、环境变量、配置正文或凭据。
 
 CPU 是约 100 ms 采样并短时合并；Linux 内存优先使用 MemAvailable。网络是可见非 loopback 接口累计计数，不是月流量，也不保证排除虚拟接口重复计数。Bot 在 Docker 内时，OS 可见总量、命名空间与容器配额/物理主机全量不同；不允许把插件 Worker 或 Agent 沙箱的 os 指标冒充 Bot 主机。
 
@@ -83,3 +83,5 @@ const outcome = await context.host('operation:renderer/render', {
 `storage.read/write` 虽属于早期可解析 grant 字符串，目前没有对应宿主方法。文件使用自己的 dataDir，grant 不能改变卷的挂载权限。也没有直接的 `llm.generate`、`http.fetch`、`schedule.create`、`agent.delegate`、`config.save`、`render.html` 或平台 adapter RPC；不要照着内部工具服务名字构造 `context.host()` 调用。
 
 若缺少能力，新增受管 MCP/插件服务或向框架增加有明确输入、输出、授权和期限的 RPC。不要开放整个 Bot 对象作为捷径。
+
+状态插件完整移植新增的 file 配置、HTML 渲染、模型分析、声明目标交付和实例定时器见 [宿主能力说明](system-status-parity.md)。

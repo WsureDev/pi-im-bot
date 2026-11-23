@@ -8,6 +8,7 @@ export const PluginInstanceSchema = z
     id: PluginIdSchema,
     name: z.string().min(1).max(100),
     enabled: z.boolean().default(false),
+    activation: z.uuid().optional(),
     sourceDir: z.string().min(1).max(4096),
     release: z
       .string()

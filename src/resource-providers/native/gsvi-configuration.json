@@ -1,0 +1,41 @@
+{
+  "api_base": {
+    "type": "string",
+    "description": "GSVI 服务地址",
+    "default": "http://127.0.0.1:8000",
+    "hint": "填写 AstrBot 可访问的地址，可包含反向代理路径前缀。所有请求均直接使用 GSVI 接口。"
+  },
+  "api_key": {
+    "type": "string",
+    "description": "API Key",
+    "secret": true,
+    "default": "",
+    "hint": "非空时自动发送 Authorization: Bearer <key>。服务端或反向代理需要自行校验该 Key。"
+  },
+  "request_headers": {
+    "type": "string",
+    "description": "自定义请求 Header（JSON）",
+    "secret": true,
+    "default": "{}",
+    "hint": "填写 JSON 字符串对象，例如 {\"X-API-Key\":\"your-key\"}。Header 名称不区分大小写；显式 Authorization 优先于 API Key 自动值。音色查询、合成和同源下载沿用这些 Header。"
+  },
+  "download_headers": {
+    "type": "string",
+    "description": "音频下载专用 Header（JSON）",
+    "secret": true,
+    "default": "{}",
+    "hint": "可选。不同源的音频下载不自动带服务认证；可在此显式填写下载所需 Header。下载重定向到其他源时不会转发这些 Header。"
+  },
+  "timeout_ms": {
+    "type": "int",
+    "description": "合成总预算（毫秒）",
+    "default": 180000,
+    "hint": "合成、下载和写文件共用此总预算。自动刷新音色最多 10 秒；工具及后台主动发送最多 10 秒，前台工具还受其剩余执行预算限制。失败时保留文字。"
+  },
+  "refresh_voices": {
+    "type": "bool",
+    "description": "刷新音色列表（执行一次）",
+    "default": false,
+    "hint": "勾选并保存后后台刷新一次，开关自动复位。插件加载、保存配置后也会自动刷新。稍后重新打开配置查看最新下拉选项；刷新失败保留已有列表和当前选择。"
+  }
+}

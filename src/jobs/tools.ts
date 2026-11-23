@@ -21,6 +21,7 @@ const UpdateSchema = TargetSchema.extend({
 })
 
 export interface JobToolServices {
+  waitOperation?(id: string, signal: AbortSignal, mode?: 'complete' | 'checkpoint'): Promise<JobSummary>
   start(title: string, spec: JobSpec, callId: string, sourceMessageIds?: string[]): Promise<JobSummary>
   list(): Promise<JobSummary[]>
   status(id: string): Promise<JobSummary>

@@ -61,10 +61,10 @@ function editDefinitions() {
   definitions.value = JSON.stringify(
     {
       protocols: view.value?.protocols.filter((entry) => {
-        return !['pi.image-library@1', 'pi.comfy-gateway@1'].includes(entry.id)
+        return view.value?.customProtocolIds.includes(entry.id)
       }),
       providers: view.value?.definitions.filter((entry) => {
-        return !['x-image', 'comfy-gateway'].includes(entry.id)
+        return view.value?.customProviderIds.includes(entry.id)
       })
     },
     null,

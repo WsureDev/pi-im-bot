@@ -1,6 +1,6 @@
 import { obj, arr, str, opt } from '@earendil-works/pi-schema'
 import type { BotTool } from '../capabilities/tool'
-import type { HostToolServices } from './host-tools'
+import type { HostToolServices } from './services'
 import { SendMessageInputSchema, logicalMessages } from '../domain/logical-message'
 import { DeliverySuppressed } from '../domain/presentation'
 import { sendLogicalSequence } from '../runtime/logical-send'

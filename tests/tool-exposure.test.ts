@@ -5,7 +5,7 @@ import { RoomSchema } from '../src/domain/message'
 import { BotConfigSchema } from '../src/config/schema'
 import { ProvidersConfigSchema } from '../src/providers/schema'
 import { ProviderCatalog } from '../src/providers/catalog'
-import { runPi } from '../src/agent/pi-runner'
+import { runAgent } from './agent-runtime'
 import { agentInput, testFramework, testResources } from './agent-input'
 import { responsesReply } from './responses-fixture'
 import { assertCapability } from '../src/permissions/authorize'
@@ -40,7 +40,10 @@ test('Pi native tool search loads only authorized tools and shared loadouts expi
       if (calls === 2) {
         return responsesReply({ kind: 'tool', name: 'chat_send', arguments: { text: 'loaded notification' } })
       }
-      if (calls === 6) {
+      if (calls === 4) {
+        return responsesReply({ kind: 'tool', name: 'chat_send', arguments: { text: 'still in use' } })
+      }
+      if (calls === 8) {
         return responsesReply({
           kind: 'tool',
           name: 'tool_search',
@@ -63,8 +66,7 @@ test('Pi native tool search loads only authorized tools and shared loadouts expi
           }
         ],
         groups: [{ id: 'main', candidates: [{ provider: 'test', model: 'test' }] }]
-      }),
-      root
+      })
     )
     const room = RoomSchema.parse({
       id: 'scope',
@@ -78,7 +80,7 @@ test('Pi native tool search loads only authorized tools and shared loadouts expi
     input.context.effective.settings.resources.toolExposure = 'deferred'
     input.context.effective.settings.resources.idleToolTurns = 1
     async function run() {
-      return runPi(
+      return runAgent(
         {
           bot: BotConfigSchema.parse({}),
           catalog,
@@ -124,11 +126,13 @@ test('Pi native tool search loads only authorized tools and shared loadouts expi
     expect(await run()).toBe('done')
     expect(requested[3]).toContain('chat_send')
     expect(await run()).toBe('done')
-    expect(requested[4]).not.toContain('chat_send')
+    expect(requested[5]).toContain('chat_send')
+    expect(await run()).toBe('done')
+    expect(requested[6]).not.toContain('chat_send')
     input.context.authority.capabilities = ['chat_history', 'tool_search']
     expect(await run()).toBe('done')
     expect(requested.at(-1)).not.toContain('chat_send')
-    expect(sends).toBe(1)
+    expect(sends).toBe(2)
     for (const tools of requested) {
       expect(tools).not.toContain('bash')
       expect(tools).not.toContain('codemode')

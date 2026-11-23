@@ -101,8 +101,7 @@ test('durable imports legacy context without loading host tools, shares it acros
             ]
           }
         ]
-      }),
-      root
+      })
     )
     const config = {
       bot: BotConfigSchema.parse({}),

@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test'
 import { mkdtemp, mkdir, rm, symlink } from 'node:fs/promises'
 import { join } from 'node:path'
-import { runPi } from '../src/agent/pi-runner'
+import { runAgent } from './agent-runtime'
 import { BotConfigSchema } from '../src/config/schema'
 import { RoomSchema } from '../src/domain/message'
 import { ProviderCatalog } from '../src/providers/catalog'
@@ -95,8 +95,7 @@ test('Pi skill metadata and package files map to the sandbox and scripts never e
           }
         ],
         groups: [{ id: 'main', candidates: [{ provider: 'test', model: 'test' }] }]
-      }),
-      root
+      })
     )
     const bot = BotConfigSchema.parse({
       agent: { execution: { backend: 'shipyard', endpoint: bay.endpoint, apiKey: 'test-bay-key' } }
@@ -116,7 +115,7 @@ test('Pi skill metadata and package files map to the sandbox and scripts never e
       undefined,
       resources.capabilityIds(input.context.effective.settings)
     )
-    const result = await runPi(
+    const result = await runAgent(
       {
         bot,
         catalog,

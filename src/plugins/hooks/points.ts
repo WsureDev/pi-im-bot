@@ -36,6 +36,8 @@ export const DeliveryViewSchema = z.object({
   content: z.enum(['plain', 'mixed']).default('mixed'),
   capabilities: z.array(z.string()).max(16).default([]),
   text: z.string().max(100000),
+  originalText: z.string().max(100000).optional(),
+  invokedCapabilities: z.array(z.string()).default([]),
   artifactIds: z.array(z.uuid()).max(256)
 })
 export type DeliveryView = z.infer<typeof DeliveryViewSchema>
@@ -177,7 +179,22 @@ export const historyProjectionNode = {
   source: 'src/plugins/hooks/model-history.ts',
   summary: '处理器只能请求隐藏自己实例的指定工具参数；保留原始Pi/IM审计与恢复记录。'
 } as const
+export const assistantHistoryNode = {
+  id: 'model.assistant-text@1',
+  title: '模型可见回复文字投影',
+  stage: 'agent',
+  position: 'before',
+  order: 26,
+  mode: 'transform',
+  writable: ['/text'],
+  input: z.object({ text: z.string().max(100000) }).strict(),
+  output: TransformPatchSchema,
+  flow: 'Pi 历史回复 → 插件文本投影 → 模型请求',
+  source: 'src/plugins/hooks/model-history.ts',
+  summary: '仅投影 assistant 文字，保留用户原文、工具结构和 Pi 原始审计。'
+} as const
 export const builtinPluginPoints = [
+  assistantHistoryNode,
   historyProjectionNode,
   recordedNode,
   contextCollectNode,

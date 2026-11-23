@@ -3,7 +3,7 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
-import { runPi } from '../src/agent/pi-runner'
+import { runAgent } from './agent-runtime'
 import { agentInput, testFramework, testResources } from './agent-input'
 import { BotConfigSchema } from '../src/config/schema'
 import { RoomSchema } from '../src/domain/message'
@@ -96,8 +96,7 @@ test('Pi files and bash share a persistent remote container; absolute guest path
       ],
       defaultGroup: 'main',
       groups: [{ id: 'main', candidates: [{ provider: 'test', model: 'test' }] }]
-    }),
-    root
+    })
   )
   const room = RoomSchema.parse({
     id: 'sandbox-room',
@@ -110,7 +109,7 @@ test('Pi files and bash share a persistent remote container; absolute guest path
   })
   const traces: string[] = []
   async function run() {
-    return runPi(
+    return runAgent(
       {
         bot: BotConfigSchema.parse({ agent: { execution } }),
         catalog,
@@ -134,7 +133,7 @@ test('Pi files and bash share a persistent remote container; absolute guest path
       },
       {
         trace(event) {
-          traces.push(event.detail)
+          traces.push(event.title + ': ' + event.detail)
         },
         provider() {},
         preview() {},
@@ -154,7 +153,7 @@ test('Pi files and bash share a persistent remote container; absolute guest path
     })
   ).toBe(true)
   expect(traces.join('\n')).toContain('remote edited')
-  expect(traces.join('\n')).toContain('Tool codemode not found')
+  expect(traces.join('\n')).toContain('失败 codemode:')
   for (const tools of toolSets) {
     expect(tools).toEqual([
       'artifact_publish',

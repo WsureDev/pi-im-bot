@@ -2,6 +2,7 @@ import type { ComfyService } from './resources'
 import { ComfyTransportError } from './errors'
 export { ComfyTransportError } from './errors'
 import { withComfyHttp } from './budgets'
+import { comfyErrorDetail } from './error-detail'
 async function requestBytes(
   service: ComfyService,
   route: string,
@@ -12,12 +13,17 @@ async function requestBytes(
 ) {
   const url = new URL(service.url.replace(/\/$/u, '') + '/' + route)
   const headers = new Headers(service.headers)
+  headers.set('x-pi-plugin-request', 'resource')
   let method = 'GET'
   let body: string | undefined
   if (payload) {
     method = 'POST'
     body = JSON.stringify(payload)
-    if (Buffer.byteLength(body) > 600000) {
+    let requestBudget = 600000
+    if (service.sourceCompatible) {
+      requestBudget = service.maxHistoryBytes
+    }
+    if (Buffer.byteLength(body) > requestBudget) {
       throw new ComfyTransportError('rejected')
     }
     headers.set('content-type', 'application/json')
@@ -65,10 +71,14 @@ async function requestBytes(
     throw new ComfyTransportError('read')
   }
   if (!response.ok || !response.body) {
+    let detail: string | undefined
+    if (service.sourceCompatible && payload && response.status >= 400 && response.status < 500) {
+      detail = await comfyErrorDetail(response, service)
+    }
     await response.body?.cancel()
     if (payload) {
       if (response.status >= 400 && response.status < 500) {
-        throw new ComfyTransportError('rejected')
+        throw new ComfyTransportError('rejected', detail)
       }
       throw new ComfyTransportError('unknown')
     }

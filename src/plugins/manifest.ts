@@ -26,7 +26,7 @@ export const PluginJsonSchema = z
 export const PluginGrantSchema = z
   .string()
   .regex(
-    /^(?:system\.status|resource\.http|resource:[a-z][a-z0-9_-]{0,47}|state\.(?:read|write)|authorization\.inspect|storage\.(?:read|write)|media\.read|history\.read|artifact\.(?:read|write)|delivery\.(?:send|recall)|service:[a-z][a-z0-9_-]{0,31}|connector:[a-z][a-z0-9_-]{0,31}|operation:[a-z][a-z0-9_-]{0,31}\/[a-z][a-z0-9_-]{0,47}|point:[a-z][a-z0-9_.-]{0,160}@\d+)$/u
+    /^(?:system\.status|render\.html|model\.analyze|configuration\.(?:write|file)|resource\.http|resource:[a-z][a-z0-9_-]{0,47}|state\.(?:read|write)|authorization\.inspect|storage\.(?:read|write)|media\.read|history\.read|artifact\.(?:read|write)|delivery\.(?:send|recall|configured)|service:[a-z][a-z0-9_-]{0,31}|connector:[a-z][a-z0-9_-]{0,31}|operation:[a-z][a-z0-9_-]{0,31}\/[a-z][a-z0-9_-]{0,47}|point:[a-z][a-z0-9_.-]{0,160}@\d+)$/u
   )
 export const PluginOperationSchema = z.object({
   id: PluginLocalIdSchema,
@@ -39,11 +39,28 @@ export const PluginOperationSchema = z.object({
   execution: z.enum(['foreground', 'background']).default('foreground'),
   data: z.enum(['scope', 'none']).default('scope'),
   actions: z
-    .array(z.enum(['tts_voices', 'tts_synthesize', 'comfy_catalog', 'comfy_generate', 'comfy_manage']))
+    .array(
+      z.union([
+        z.enum(['tts_voices', 'tts_synthesize', 'comfy_catalog', 'comfy_generate', 'comfy_manage']),
+        z.string().regex(/^resource:[a-z][a-z0-9_-]{0,47}\/[a-z][a-z0-9_-]{0,47}$/u)
+      ])
+    )
     .max(5)
     .default([]),
   timeoutMs: z.number().int().min(100).max(300000).default(30000),
   serviceTimeout: PluginLocalIdSchema.optional(),
+  resourceTimeout: PluginLocalIdSchema.optional(),
+  toolWaitForCheckpoint: z.boolean().default(false),
+  ownsDelivery: z.boolean().default(false),
+  commandResponse: z.enum(['accepted', 'silent']).default('accepted'),
+  toolWaitWhen: z
+    .object({
+      field: z.string(),
+      equals: z.union([z.string(), z.number(), z.boolean()]),
+      defaultValue: z.union([z.string(), z.number(), z.boolean()]).optional()
+    })
+    .strict()
+    .optional(),
   grants: z.array(PluginGrantSchema).max(32).default([]),
   recover: PluginLocalIdSchema.optional(),
   handleSchema: z.record(z.string(), z.json()).optional(),
@@ -103,6 +120,7 @@ export const PluginHookSchema = z.object({
     .array(
       z.union([
         z.enum(['tts_voices', 'tts_synthesize']),
+        z.string().regex(/^resource:[a-z][a-z0-9_-]{0,47}\/[a-z][a-z0-9_-]{0,47}$/u),
         z.string().regex(/^plugin:self\/[a-z][a-z0-9_-]{0,47}$/u)
       ])
     )
@@ -131,6 +149,7 @@ export const PluginConnectionSchema = z
 export const PluginManifestSchema = z
   .object({
     apiVersion: z.literal(1),
+    mutableConfigurationPaths: z.array(z.string()).max(32).default([]),
     id: PluginIdSchema,
     name: z.string().min(1).max(100),
     version: z.string().regex(/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/u),
@@ -153,12 +172,38 @@ export const PluginManifestSchema = z
     resourceProvider: ProviderMetadataSchema.optional(),
     resources: z.array(ResourceDependencySchema).max(32).default([]),
     operations: z.array(PluginOperationSchema).max(100).default([]),
+    deliveryTargets: z
+      .array(z.string().regex(/^[a-zA-Z0-9_.]+$/u))
+      .max(8)
+      .default([]),
+    timers: z
+      .array(
+        z
+          .object({
+            id: PluginLocalIdSchema,
+            operation: PluginLocalIdSchema,
+            intervalSeconds: z.number().int().min(5).max(86400),
+            enabledSetting: z.string().regex(/^[a-zA-Z0-9_.]+$/u)
+          })
+          .strict()
+      )
+      .max(8)
+      .default([]),
     commands: z.array(PluginCommandSchema).max(100).default([]),
     hooks: z.array(PluginHookSchema).max(100).default([]),
     points: z.array(PluginPointSchema).max(30).default([])
   })
   .strict()
   .superRefine((value, context) => {
+    for (const timer of value.timers) {
+      if (
+        !value.operations.some((operation) => {
+          return operation.id === timer.operation && !operation.tool
+        })
+      ) {
+        context.addIssue({ code: 'custom', message: '定时入口必须引用已声明的非工具操作' })
+      }
+    }
     if (
       value.resourceProvider?.tools.some((id) => {
         return !value.operations.some((operation) => {
@@ -178,27 +223,50 @@ export const PluginManifestSchema = z
     }
     for (const operation of value.operations) {
       if (
+        operation.resourceTimeout &&
+        (operation.execution !== 'background' ||
+          !operation.grants.includes('resource:' + operation.resourceTimeout) ||
+          !value.resources.some((dependency) => {
+            return dependency.alias === operation.resourceTimeout
+          }))
+      ) {
+        context.addIssue({ code: 'custom', message: '资源预算必须绑定本操作已声明的后台资源依赖' })
+      }
+      for (const action of operation.actions) {
+        if (!action.startsWith('resource:')) {
+          continue
+        }
+        const [alias, method] = action.slice(9).split('/')
+        if (
+          !value.resources.some((dependency) => {
+            return dependency.alias === alias && dependency.methods.includes(method)
+          }) ||
+          !operation.grants.includes('resource:' + alias)
+        ) {
+          context.addIssue({ code: 'custom', message: '资源动作必须引用已声明方法和对应 grant' })
+        }
+      }
+      if (
         operation.serviceTimeout &&
         (value.configurationProjection !== 'gsvi@1' ||
           operation.execution !== 'background' ||
           !operation.actions.includes('tts_synthesize') ||
-          operation.grants.some(
-            (grant) =>
-              !['service:' + operation.serviceTimeout, 'storage.read', 'artifact.write'].includes(grant)
-          ) ||
+          operation.grants.some((grant) => {
+            return !['service:' + operation.serviceTimeout, 'storage.read', 'artifact.write'].includes(grant)
+          }) ||
           !operation.grants.includes('service:' + operation.serviceTimeout) ||
-          !value.connections.some(
-            (entry) => entry.alias === operation.serviceTimeout && entry.service === 'gsvi@1'
-          ))
+          !value.connections.some((entry) => {
+            return entry.alias === operation.serviceTimeout && entry.service === 'gsvi@1'
+          }))
       ) {
         context.addIssue({ code: 'custom', message: '服务期限仅允许原生GSVI的已声明后台服务操作' })
       }
     }
     if (
       value.configurationProjection &&
-      !value.connections.some(
-        (entry) => entry.kind === 'service' && entry.alias === 'speech' && entry.service === 'gsvi@1'
-      )
+      !value.connections.some((entry) => {
+        return entry.kind === 'service' && entry.alias === 'speech' && entry.service === 'gsvi@1'
+      })
     ) {
       context.addIssue({ code: 'custom', message: 'GSVI配置投影必须声明speech:gsvi@1服务' })
     }

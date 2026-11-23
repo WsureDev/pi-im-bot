@@ -10,12 +10,20 @@ import { resourceCapability } from './protocol'
 import { materializeResourceFiles } from './files'
 import { ArtifactStore } from '../artifacts/store'
 import { createHash } from 'node:crypto'
+import type { ResourceNativeContext } from './native/contracts'
+import type { PluginAction } from '../plugins/rpc/protocol'
+import { resourceModels } from './native/model'
 
 const CallSchema = z
   .object({
     method: z.string(),
     parameters: ConfigValuesSchema.default({}),
-    publishFiles: z.boolean().default(false)
+    publishFiles: z.boolean().default(false),
+    key: z
+      .string()
+      .regex(/^[a-zA-Z0-9_.:-]{1,160}$/u)
+      .optional(),
+    timeoutMs: z.number().int().positive().optional()
   })
   .strict()
 export function registerResourceBindings(
@@ -24,7 +32,9 @@ export function registerResourceBindings(
   binding: PluginBinding,
   callId: string,
   authorizeGrant: (grant: string) => void,
-  current: () => Configuration
+  current: () => Configuration,
+  durable?: ResourceNativeContext['durable'],
+  phase: PluginAction['phase'] = 'execute'
 ) {
   const used: Array<() => void> = []
   for (const dependency of binding.bundle.manifest.resources) {
@@ -62,21 +72,81 @@ export function registerResourceBindings(
         authorize(capability)
       }
       used.push(check)
+      let requestKey = callId + ':' + crypto.randomUUID()
+      if (input.key) {
+        requestKey = JSON.stringify([
+          invocation.input.context.jobId ?? callId,
+          invocation.input.context.jobRevision,
+          binding.instance.id,
+          binding.bundle.revision,
+          id,
+          input.method,
+          input.key
+        ])
+      }
+      let signal = context.signal
+      if (input.timeoutMs) {
+        signal = AbortSignal.any([signal, AbortSignal.timeout(Math.min(input.timeoutMs, 2147483647))])
+      }
+      const artifacts = new ArtifactStore(
+        invocation.config.dataDir,
+        invocation.room.id,
+        undefined,
+        'resource:' + id,
+        () => {
+          check()
+          return {
+            capabilities: [capability],
+            mediaIds: [],
+            plugin: {
+              instanceId: binding.instance.id,
+              grants: [grant],
+              services: {},
+              resources: {
+                [dependency.alias]: {
+                  id,
+                  protocol: dependency.protocol,
+                  method: input.method,
+                  revision: captured
+                }
+              }
+            }
+          }
+        }
+      )
       const result = await callResource(
         () => {
           return current().resources.config
         },
         { resourceId: id, protocol: dependency.protocol, method: input.method, parameters: input.parameters },
         {
-          requestId: createHash('sha256')
-            .update(callId + ':' + crypto.randomUUID())
-            .digest('hex'),
-          signal: context.signal,
+          requestId: createHash('sha256').update(requestKey).digest('hex'),
+          signal,
           authorize,
-          readOnly: invocation.readOnly
+          readOnly: invocation.readOnly,
+          host: {
+            optionsChanged: durable?.optionsChanged,
+            dataDir: invocation.config.dataDir,
+            artifacts,
+            durable,
+            models: resourceModels(
+              () => {
+                return current().catalog
+              },
+              invocation.input.context.effective.settings.preferences.providerGroup,
+              invocation.input.context.effective.persona.prompt
+            ),
+            owner: {
+              scope: invocation.room.id,
+              caller: binding.instance.id,
+              job: invocation.input.context.jobId,
+              jobRevision: invocation.input.context.jobRevision,
+              phase
+            }
+          }
         }
       )
-      if (input.publishFiles) {
+      if (input.publishFiles && result.files.length) {
         const instance = resolveResource(
           current().resources.config,
           id,

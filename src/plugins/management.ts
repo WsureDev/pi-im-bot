@@ -1,4 +1,5 @@
 import { compatibleResource } from '../resource-providers/bindings'
+import { resourceWorkerDefinition, resourceWorkerValues } from '../resource-providers/projection'
 import type { ResourceLibrary } from '../resources/library'
 import type { PluginInstance, PluginPackage } from './config'
 import type { PluginGrantSchema } from './manifest'
@@ -78,7 +79,12 @@ export function resolvePluginConnections(instance: PluginInstance, bundle: Plugi
 export function pluginIssues(instance: PluginInstance, bundle: PluginPackage, library: ResourceLibrary) {
   const issues = []
   if (bundle.configuration) {
-    issues.push(...configIssues(gsviWorkerDefinition(bundle) ?? {}, instance.settings))
+    issues.push(
+      ...configIssues(
+        resourceWorkerDefinition(bundle, gsviWorkerDefinition(bundle)) ?? {},
+        resourceWorkerValues(bundle, instance.settings)
+      )
+    )
   }
   for (const connection of pluginConnections(bundle)) {
     if (!connection.required) {

@@ -110,8 +110,7 @@ test('background agent keeps its own context while another member uses the share
           }
         ],
         groups: [{ id: 'main', candidates: [{ provider: 'test', model: 'test' }] }]
-      }),
-      root
+      })
     )
     const config = {
       bot: BotConfigSchema.parse({}),
@@ -241,8 +240,7 @@ test('cancelling a background shell job stops only its sandbox and leaves root f
           }
         ],
         groups: [{ id: 'main', candidates: [{ provider: 'test', model: 'test' }] }]
-      }),
-      root
+      })
     )
     const config = {
       bot: BotConfigSchema.parse({

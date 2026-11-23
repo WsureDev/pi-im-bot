@@ -13,6 +13,7 @@ import { materializeResourceFiles } from '../files'
 import { resolveResource } from '../registry'
 import { commandParameters } from './parameters'
 import { resourceCommandCapability, type ResourceCommand } from './schema'
+import { resourceModels } from '../native/model'
 
 export async function executeResourceCommand(
   current: () => Configuration,
@@ -103,17 +104,39 @@ export async function executeResourceCommand(
     }
   }
   const { resourceId, protocol, method } = target
+  let durable
+  if (jobs) {
+    durable = { runtime: jobs.runtime, jobs: jobs.repository }
+  }
   const before = resolveResource(current().resources.config, resourceId, protocol, method)
   const result = await callResource(
     () => {
       return current().resources.config
     },
     { resourceId: target.resourceId, protocol: target.protocol, method: target.method, parameters: args },
-    { requestId, signal, authorize }
+    {
+      requestId,
+      signal,
+      authorize,
+      host: {
+        optionsChanged: jobs?.coordinator.plugins?.managed?.resources?.optionsChanged,
+        dataDir: invocation.config.dataDir,
+        artifacts,
+        durable,
+        models: resourceModels(
+          () => {
+            return current().catalog
+          },
+          invocation.input.context.effective.settings.preferences.providerGroup,
+          invocation.input.context.effective.persona.prompt
+        ),
+        owner: { scope: invocation.room.id, caller: commandId, phase: 'execute' }
+      }
+    }
   )
-  let artifactIds: string[] = []
-  if (command.output === 'images') {
-    artifactIds = await materializeResourceFiles(before.instance, result, artifacts, signal, verify)
+  let artifactIds: string[] = [...result.artifactIds]
+  if (command.output === 'images' && result.files.length) {
+    artifactIds.push(...(await materializeResourceFiles(before.instance, result, artifacts, signal, verify)))
   }
   function verify() {
     authorize()

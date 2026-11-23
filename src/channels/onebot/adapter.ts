@@ -1,6 +1,12 @@
+import { actionRequest, actionResult, type OneBotAction, type ActionParams } from './actions'
 import { z } from 'zod'
 import type { ChannelAdapter } from '../../domain/channel'
-import { PartialDelivery, type ChannelMedia, type SendControl } from '../../domain/channel-media'
+import {
+  PartialDelivery,
+  type ChannelMedia,
+  type SendControl,
+  type ChannelMessagePart
+} from '../../domain/channel-media'
 import type { Address, IncomingMessage, InboundOutcome } from '../../domain/message'
 import type { EventHub } from '../../runtime/events'
 import { OneBotMessageSchema, OneBotResponseSchema } from './protocol'
@@ -110,7 +116,7 @@ export class OneBotAdapter implements ChannelAdapter {
       }
       clearTimeout(pending.timeout)
       this.pending.delete(response.data.echo)
-      if (response.data.retcode === 0) {
+      if (response.data.retcode === 0 && response.data.status !== 'failed') {
         pending.resolve(response.data.data)
       } else {
         pending.reject(
@@ -210,26 +216,28 @@ export class OneBotAdapter implements ChannelAdapter {
     }
   }
 
-  private request(address: Address, action: string, params: Record<string, string | number | object>) {
+  private async request<A extends OneBotAction>(address: Address, action: A, params: ActionParams<A>) {
     const socket = this.sockets.get(address.accountId)
     if (!socket) {
       return Promise.reject(new Error('NapCat 尚未连接'))
     }
     const echo = crypto.randomUUID()
-    return new Promise<unknown>((resolve, reject) => {
+    const request = actionRequest(action, params, echo)
+    const result = await new Promise<unknown>((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pending.delete(echo)
         reject(new Error('OneBot action timed out; delivery may have happened and is not retried'))
       }, 15000)
       this.pending.set(echo, { selfId: address.accountId, resolve, reject, timeout })
       try {
-        socket.send(JSON.stringify({ action, params, echo }))
+        socket.send(JSON.stringify(request))
       } catch (error) {
         clearTimeout(timeout)
         this.pending.delete(echo)
         reject(error)
       }
     })
+    return actionResult(action, result)
   }
 
   async send(address: Address, text: string, media: readonly ChannelMedia[] = [], control?: SendControl) {
@@ -271,15 +279,13 @@ export class OneBotAdapter implements ChannelAdapter {
         if (!oneBotAllowed(this.config(), address)) {
           throw new Error('该 QQ 会话已停用')
         }
-        let action = 'send_private_msg'
-        let params: Record<string, string | number | object> = { user_id: address.chatId, message }
+        let action: 'send_private_msg' | 'send_group_msg' = 'send_private_msg'
+        let params: ActionParams<'send_private_msg' | 'send_group_msg'> = { user_id: address.chatId, message }
         if (address.kind === 'group') {
           action = 'send_group_msg'
           params = { group_id: address.chatId, message }
         }
-        const result = z
-          .object({ message_id: z.union([z.string(), z.number()]).transform(String) })
-          .parse(await this.request(address, action, params))
+        const result = await this.request(address, action, params)
         if (messageIds.length === 0) {
           sentAt = Date.now()
         }
@@ -295,7 +301,13 @@ export class OneBotAdapter implements ChannelAdapter {
     return { messageIds, sentAt }
   }
 
-  async sendForward(address: Address, text: string, media: readonly ChannelMedia[], control?: SendControl) {
+  async sendForward(
+    address: Address,
+    text: string,
+    media: readonly ChannelMedia[],
+    control?: SendControl,
+    parts?: readonly ChannelMessagePart[]
+  ) {
     if (!oneBotAllowed(this.config(), address)) {
       throw new Error('当前QQ目标已停用')
     }
@@ -310,41 +322,71 @@ export class OneBotAdapter implements ChannelAdapter {
       type: string
       data: { uin: string; name: string; content: Array<{ type: string; data: Record<string, string> }> }
     }> = []
-    if (text) {
-      messages.push({
-        type: 'node',
-        data: { uin: address.accountId, name: 'Pi', content: [{ type: 'text', data: { text } }] }
-      })
-    }
-    for (const file of media) {
-      messages.push({
-        type: 'node',
-        data: {
-          uin: address.accountId,
-          name: 'Pi',
-          content: [
-            { type: 'image', data: { file: 'base64://' + Buffer.from(file.data).toString('base64') } }
-          ]
+    if (parts) {
+      for (const part of parts) {
+        const content: Array<{ type: string; data: Record<string, string> }> = []
+        if (part.text) {
+          content.push({ type: 'text', data: { text: part.text } })
         }
-      })
+        for (const file of part.media) {
+          if (file.kind !== 'image') {
+            throw new Error('合并转发仅接受已校验图片')
+          }
+          content.push({
+            type: 'image',
+            data: { file: 'base64://' + Buffer.from(file.data).toString('base64') }
+          })
+        }
+        if (content.length) {
+          messages.push({ type: 'node', data: { uin: address.accountId, name: 'Pi', content } })
+        }
+      }
+    } else {
+      if (text) {
+        messages.push({
+          type: 'node',
+          data: { uin: address.accountId, name: 'Pi', content: [{ type: 'text', data: { text } }] }
+        })
+      }
+      for (const file of media) {
+        messages.push({
+          type: 'node',
+          data: {
+            uin: address.accountId,
+            name: 'Pi',
+            content: [
+              { type: 'image', data: { file: 'base64://' + Buffer.from(file.data).toString('base64') } }
+            ]
+          }
+        })
+      }
     }
     await control?.beforePart?.()
     if (!oneBotAllowed(this.config(), address)) {
       throw new Error('当前QQ目标已停用')
     }
-    let action = 'send_private_forward_msg'
-    let params: Record<string, string | number | object> = { user_id: address.chatId, messages }
+    let action: 'send_private_forward_msg' | 'send_group_forward_msg' = 'send_private_forward_msg'
+    let params: ActionParams<'send_private_forward_msg' | 'send_group_forward_msg'> = {
+      user_id: address.chatId,
+      messages
+    }
     if (address.kind === 'group') {
       action = 'send_group_forward_msg'
       params = { group_id: address.chatId, messages }
     }
-    const result = z
-      .object({ message_id: z.union([z.string(), z.number()]).transform(String) })
-      .parse(await this.request(address, action, params))
+    const result = await this.request(address, action, params)
     const receipt = { messageIds: [result.message_id], sentAt: Date.now() }
     await control?.received?.(receipt.messageIds, receipt.sentAt)
     return receipt
   }
+  async identity(address: Address, signal: AbortSignal) {
+    const result = await awaitWithContext(
+      this.request(address, 'get_login_info', {}),
+      withAbortSignal(signal, BACKGROUND_CONTEXT)
+    )
+    return result.nickname
+  }
+
   async recall(address: Address, messageId: string) {
     if (!oneBotAllowed(this.config(), address)) {
       throw new Error('该 QQ 会话已停用')
@@ -379,21 +421,11 @@ export class OneBotAdapter implements ChannelAdapter {
     return fetchedMessage(address, id, result)
   }
   async refreshGroups(selfId: string) {
-    const groups = z
-      .array(
-        z.object({
-          group_id: z.union([z.string(), z.number()]).transform(String),
-          group_name: z.string()
-        })
-      )
-      .max(2000)
-      .parse(
-        await this.request(
-          { channel: this.id, accountId: selfId, kind: 'group', chatId: '' },
-          'get_group_list',
-          {}
-        )
-      )
+    const groups = await this.request(
+      { channel: this.id, accountId: selfId, kind: 'group', chatId: '' },
+      'get_group_list',
+      {}
+    )
     for (const group of groups) {
       this.chats.set(selfId + ':group:' + group.group_id, {
         selfId,

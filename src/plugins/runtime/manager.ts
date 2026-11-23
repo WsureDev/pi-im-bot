@@ -228,6 +228,7 @@ export class PluginWorkerManager {
     let release: (() => void) | undefined
     let worker: Worker | undefined
     let releaseStateless: (() => void) | undefined
+    const callerSignal = signal
     const deadline = deadlineScope(signal, context.deadlineAt)
     signal = deadline.signal
     try {
@@ -272,14 +273,16 @@ export class PluginWorkerManager {
       return result
     } catch (error) {
       if (worker && !(error instanceof PluginInvocationError)) {
-        const previous = this.faults.get(key)?.count ?? 0
-        this.faults.set(key, {
-          count: previous + 1,
-          retryAt: Date.now() + Math.min(30000, 500 * 2 ** previous),
-          message: String(error).slice(0, 300)
-        })
-        if (this.faults.size > 256) {
-          this.faults.delete(this.faults.keys().next().value!)
+        if (!callerSignal.aborted) {
+          const previous = this.faults.get(key)?.count ?? 0
+          this.faults.set(key, {
+            count: previous + 1,
+            retryAt: Date.now() + Math.min(30000, 500 * 2 ** previous),
+            message: String(error).slice(0, 300)
+          })
+          if (this.faults.size > 256) {
+            this.faults.delete(this.faults.keys().next().value!)
+          }
         }
         void this.stopWorker(worker).catch(() => {})
       }

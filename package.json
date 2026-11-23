@@ -5,7 +5,8 @@
   "type": "module",
   "packageManager": "bun@1.4.4",
   "scripts": {
-    "dev": "bun --watch src/main.ts",
+    "dev": "bun scripts/dev.ts",
+    "dev:bot": "bun --watch src/main.ts",
     "dev:dashboard": "bun run --cwd dashboard dev",
     "install:dashboard": "bun install --cwd dashboard --frozen-lockfile",
     "start": "bun src/main.ts",
@@ -20,19 +21,20 @@
     "format:check": "bunx --bun prettier --check src dashboard/src dashboard/vite.config.ts scripts tests config/*.example.json"
   },
   "dependencies": {
-    "@earendil-works/chord": "1.5.0",
-    "@earendil-works/pi-agent-core": "1.5.0",
-    "@earendil-works/pi-ai": "1.5.0",
-    "@earendil-works/pi-coding-agent": "1.5.0",
-    "@earendil-works/pi-durable": "1.5.0",
-    "@earendil-works/pi-mcp": "1.5.0",
-    "@earendil-works/pi-schema": "1.5.0",
+    "@earendil-works/chord": "1.5.2",
+    "@earendil-works/pi-agent-core": "1.5.2",
+    "@earendil-works/pi-ai": "1.5.2",
+    "@earendil-works/pi-coding-agent": "1.5.2",
+    "@earendil-works/pi-durable": "1.5.2",
+    "@earendil-works/pi-mcp": "1.5.2",
+    "@earendil-works/pi-schema": "1.5.2",
     "@hono/standard-validator": "0.4.1",
     "ajv": "8.17.1",
     "croner": "11.0.0",
     "dompurify": "^3.4.17",
     "hono": "4.13.17",
     "marked": "^18.2.0",
+    "playwright-core": "1.60.0",
     "zod": "4.6.7"
   },
   "devDependencies": {

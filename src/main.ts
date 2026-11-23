@@ -20,13 +20,14 @@ import { ResourceEditor } from './resources/editor'
 import { resourceReferences } from './resources/references'
 import { RuntimeOwner } from './storage/owner'
 import { DurableAgentRuntime } from './agent/durable/runtime'
-import { BunSqliteDatabase } from './agent/durable/bun-sqlite'
+import { BunSqliteDatabase } from './storage/durable-sqlite'
 import { SqliteStorage } from '@earendil-works/pi-durable/storage/sqlite'
 import { JobService } from './jobs/service'
 import { ArtifactStore } from './artifacts/store'
 import { MediaService } from './media/service'
 import { PluginWorkerManager } from './plugins/runtime/manager'
 import { PluginService } from './plugins/service'
+import { PluginTimers } from './plugins/timers'
 import { PluginEditor } from './plugins/editor'
 import { revision } from './settings/resolve'
 import { configureArtifacts } from './artifacts/quota'
@@ -123,6 +124,14 @@ await durable.open(
 )
 coordinator.resumeRecovery()
 scheduler.start()
+const pluginTimers = new PluginTimers(
+  () => {
+    return configuration
+  },
+  coordinator.plugins,
+  coordinator
+)
+pluginTimers.start()
 const configMutations = new ConfigurationMutations()
 const providerEditor = new ProviderEditor(
   {
@@ -186,6 +195,18 @@ const pluginEditor = new PluginEditor(
     return resourceReferences(configuration, store, 'plugin', id)
   }
 )
+if (coordinator.plugins?.managed) {
+  if (coordinator.plugins.managed.resources) {
+    coordinator.plugins.managed.resources.optionsChanged = (id) => {
+      pluginEditor.resourceOptions.resourceChanged(id)
+    }
+  }
+  coordinator.plugins.managed.configuration = {
+    patch: (id, release, patch) => {
+      return pluginEditor.patchOwnSettings(id, release, patch)
+    }
+  }
+}
 const pluginInstaller = new PluginInstaller(pluginEditor, () => {
   events.emit({ type: 'config' })
 })
@@ -309,11 +330,13 @@ async function shutdown() {
     return
   }
   closing = true
+  await pluginTimers.close()
   await scheduler.stop()
   onebot.close()
   await coordinator.shutdown()
   await pluginInstaller.close()
   await pluginEditor.gsviRefresh.close()
+  await pluginEditor.resourceOptions.close()
   await coordinator.plugins?.manager.close()
   await server.stop(true)
   store.close()

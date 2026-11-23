@@ -61,6 +61,7 @@ export const DataSettingsSchema = z.object({
 export const PreferenceSettingsSchema = z.object({
   personaId: z.string().min(1).default('default'),
   providerGroup: z.string().min(1).default('main'),
+  visionProvider: z.string().max(500).default(''),
   replyStyle: z.string().max(4000).default('')
 })
 export const BehaviorSettingsSchema = z.object({
@@ -120,6 +121,7 @@ export const SettingsPatchSchema = z
       .object({
         personaId: PreferenceSettingsSchema.shape.personaId.unwrap(),
         providerGroup: PreferenceSettingsSchema.shape.providerGroup.unwrap(),
+        visionProvider: PreferenceSettingsSchema.shape.visionProvider.unwrap(),
         replyStyle: PreferenceSettingsSchema.shape.replyStyle.unwrap()
       })
       .partial()

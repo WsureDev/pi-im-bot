@@ -1,6 +1,6 @@
 import { Database } from 'bun:sqlite'
 import type { SqliteDatabase, SqliteExecutor, SqliteValue } from '@earendil-works/pi-durable/storage/sqlite'
-import { privateSqliteFiles } from '../../storage/private-file'
+import { privateSqliteFiles } from './private-file'
 
 /** Serial async facade required by durable; transaction callbacks use only their scoped executor. */
 export class BunSqliteDatabase implements SqliteDatabase {

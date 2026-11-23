@@ -51,7 +51,7 @@ async function setup() {
   await writeFile(path, JSON.stringify(config))
   let current = {
     bot: BotConfigSchema.parse({}),
-    catalog: await ProviderCatalog.create(config, directory),
+    catalog: await ProviderCatalog.create(config),
     dataDir: directory,
     configDir: directory,
     framework: testFramework(),

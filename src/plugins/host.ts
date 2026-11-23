@@ -1,4 +1,8 @@
 import { namedService, serviceRevision } from '../services/resources'
+import { registerHtmlRender } from './render-rpc'
+import { registerConfigFiles } from './configuration/file-rpc'
+import { readConfigPath } from '../resource-providers/projection'
+import { registerModelAnalysis } from './model-rpc'
 import { registerPluginState } from './state/rpc'
 import { registerComfy } from './comfy-rpc'
 import type { PluginManagedServices } from './managed'
@@ -54,7 +58,29 @@ export function pluginHostServices(
   }
 ) {
   const host = new PluginHostServices()
-  const verifyResources = registerResourceBindings(host, invocation, binding, callId, authorizeGrant, current)
+  host.register(
+    'configuration.patch',
+    'configuration.write',
+    z.object({ values: z.record(z.string(), z.json()) }).strict(),
+    async (input) => {
+      if (invocation.readOnly || !managed?.configuration) {
+        throw new Error('此上下文不允许修改插件配置')
+      }
+      authorizeGrant('configuration.write')
+      await managed.configuration.patch(binding.instance.id, binding.bundle.revision, input.values)
+      return { saved: true }
+    }
+  )
+  const verifyResources = registerResourceBindings(
+    host,
+    invocation,
+    binding,
+    callId,
+    authorizeGrant,
+    current,
+    managed?.resources,
+    phase
+  )
   const http = binding.bundle.manifest.resourceProvider?.http
   if (http) {
     host.register('resource.http', 'resource.http', ResourceHttpRequestSchema, async (input, context) => {
@@ -129,12 +155,18 @@ export function pluginHostServices(
   host.register('system.status', 'system.status', z.object({}).strict(), async (_input, context) => {
     invocation.services.authorize('runtime_status')
     const snapshot = await collectRuntimeStatus(invocation.config)
+    const identity = await invocation.services.identity?.().catch(() => {
+      return undefined
+    })
+    snapshot.bot.name = identity || invocation.room.address.accountId || snapshot.bot.name
     context.signal.throwIfAborted()
     authorizeGrant('system.status')
     invocation.services.authorize('runtime_status')
+    usedGrants.add('system.status')
+    usedCapabilities.add('runtime_status')
     return snapshot
   })
-  registerPluginState(host, invocation, binding, managed, authorizeGrant)
+  registerPluginState(host, invocation, binding, managed, authorizeGrant, current)
   const artifacts = new ArtifactStore(
     invocation.config.dataDir,
     invocation.room.id,
@@ -153,6 +185,35 @@ export function pluginHostServices(
     authorizeGrant(grant)
     usedGrants.add(grant)
   }
+  host.register(
+    'delivery.configured',
+    'delivery.configured',
+    z
+      .object({ field: z.string().max(200), text: z.string().max(12000), key: z.string().min(1).max(150) })
+      .strict(),
+    async (input, context) => {
+      checkGrant('delivery.configured')
+      if (
+        invocation.readOnly ||
+        !binding.bundle.manifest.deliveryTargets.includes(input.field) ||
+        !invocation.services.configuredDelivery
+      ) {
+        throw new Error('未声明或不可用的配置目标交付')
+      }
+      const settings = mergeConfig(
+        binding.instance.settings,
+        invocation.input.context.effective.settings.extensions.settings[binding.instance.id] ?? {},
+        binding.bundle.configuration
+      )
+      const target = z.string().min(1).parse(readConfigPath(settings, input.field))
+      context.signal.throwIfAborted()
+      await invocation.services.configuredDelivery(binding.instance.id, target, input.text, input.key)
+      checkGrant('delivery.configured')
+      return { delivered: true }
+    }
+  )
+  registerConfigFiles(host, invocation, binding, checkGrant)
+  registerModelAnalysis(host, invocation, artifacts, binding.instance.id, checkGrant)
   registerPluginMedia(
     host,
     invocation,
@@ -247,6 +308,7 @@ export function pluginHostServices(
   )
   let sends = 0
   if (openFile) {
+    registerHtmlRender(host, openFile, artifacts, binding.instance.id, checkGrant, managed?.renderHtml)
     host.register(
       'artifact.publish',
       'artifact.write',
@@ -309,14 +371,15 @@ export function pluginHostServices(
       authorizeGrant('delivery.send')
       invocation.services.authorize('chat_send')
     }
-    const send = (part: (typeof parts)[number], index: number) =>
-      invocation.services.send(
+    const send = (part: (typeof parts)[number], index: number) => {
+      return invocation.services.send(
         part.text,
         callId + ':plugin:' + (first + index + 1),
         part.artifactIds,
         check,
         { signal: context.signal, deadlineAt: context.invocation.deadlineAt }
       )
+    }
     if ('messages' in input) {
       return sendLogicalSequence(parts, send, check)
     }

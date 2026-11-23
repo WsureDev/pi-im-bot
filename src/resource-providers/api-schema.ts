@@ -10,6 +10,8 @@ import { PluginConfigViewSchema, SavePluginConfigSchema } from '../plugins/confi
 
 export const IndependentRegistrySchema = z.object({
   revision: z.string(),
+  customProtocolIds: z.array(z.string()),
+  customProviderIds: z.array(z.string()),
   protocols: z.array(ResourceProtocolSchema),
   definitions: z.array(ProviderDefinitionSchema),
   instances: z.array(

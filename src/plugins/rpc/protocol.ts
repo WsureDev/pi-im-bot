@@ -2,17 +2,21 @@ import { MessageFormatSchema, BusinessStatusSchema, BusinessItemSchema } from '.
 import { z } from 'zod'
 import { AddressSchema } from '../../domain/message'
 import { PluginIdSchema, PluginLocalIdSchema } from '../manifest'
+import { LogicalMessageSchema } from '../../domain/logical-message'
 
 export const PluginOriginSchema = z.enum(['im', 'command', 'schedule', 'job', 'tool', 'admin'])
 export const PluginInvocationViewSchema = z.object({
   id: z.uuid(),
   parentId: z.string().optional(),
+  job: z.object({ id: z.string(), revision: z.number().int() }).optional(),
   instanceId: PluginIdSchema,
   generation: z.string(),
   scope: z.object({ id: z.string(), address: AddressSchema }),
   conversationId: z.string(),
   conversationEpoch: z.number().int().nonnegative(),
   origin: PluginOriginSchema,
+  entrySurface: z.enum(['tool', 'command']).optional(),
+  phase: z.enum(['execute', 'poll', 'cancel', 'recover', 'reconcile']).optional(),
   deadlineAt: z.number(),
   actors: z
     .array(
@@ -28,6 +32,9 @@ export const PluginInvocationViewSchema = z.object({
     )
     .max(20),
   settings: z.record(z.string(), z.json()),
+  resources: z
+    .record(z.string(), z.object({ id: z.string(), protocol: z.string(), methods: z.array(z.string()) }))
+    .default({}),
   resource: z
     .object({ id: z.string(), externalId: z.string(), configuration: z.record(z.string(), z.json()) })
     .optional(),
@@ -83,14 +90,15 @@ export type HostMessage = z.infer<typeof HostMessageSchema>
 export const PluginResultSchema = z
   .object({
     text: z.string().max(100000).default(''),
-    artifactIds: z.array(z.uuid()).max(256).default([]),
+    messages: z.array(LogicalMessageSchema).optional(),
+    artifactIds: z.array(z.uuid()).default([]),
     value: z.json().optional(),
     suppressText: z.boolean().optional(),
     format: MessageFormatSchema.optional(),
     itemized: z.boolean().optional(),
     businessStatus: BusinessStatusSchema.optional(),
     factsComplete: z.boolean().optional(),
-    items: z.array(BusinessItemSchema).max(16).optional()
+    items: z.array(BusinessItemSchema).optional()
   })
   .strict()
 export type PluginResult = z.infer<typeof PluginResultSchema>
@@ -103,6 +111,9 @@ export const PluginOperationOutcomeSchema = z.discriminatedUnion('status', [
       status: z.literal('pending'),
       handle: z.json(),
       pollAfterMs: z.number().int().min(250).max(300000).default(1000),
+      progress: z
+        .array(LogicalMessageSchema.extend({ key: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/u) }))
+        .optional(),
       message: z.string().max(2000).optional()
     })
     .strict()

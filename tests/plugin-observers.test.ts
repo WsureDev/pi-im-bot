@@ -94,6 +94,11 @@ test('a receipt observer schedules a persistent scoped recall, survives restart 
     )
     expect(await Bun.file(count).text()).toBe('1')
     expect(app.store.observationCount()).toBe(0)
+    await untilJob(async () => {
+      return (await app.coordinator.observations!.status()).recent.some((record) => {
+        return record.dueAt !== undefined && record.state === 'done'
+      })
+    }, 'recall receipt was not committed')
     expect(
       (await app.coordinator.observations!.status()).recent.some((record) => {
         return record.dueAt !== undefined && record.state === 'done'

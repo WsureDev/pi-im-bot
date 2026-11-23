@@ -53,7 +53,12 @@ test('the generated node catalog edits actual delivery order and rejects undecla
         return node.id
       })
     ).toContain('model.history@1')
-    expect(view.nodes).toHaveLength(7)
+    expect(view.nodes).toHaveLength(8)
+    expect(
+      view.nodes.map((node) => {
+        return node.id
+      })
+    ).toContain('model.assistant-text@1')
     expect(
       view.nodes.find((node) => {
         return node.id === 'delivery.text@1'

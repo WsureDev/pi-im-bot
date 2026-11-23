@@ -1,5 +1,5 @@
 import type { BotTool } from '../capabilities/tool'
-import type { PluginService } from './service'
+import type { PluginExecution } from './execution'
 import { pluginOperations, type PluginInvocation } from './invocation'
 import {
   PluginArgumentsSchema,
@@ -11,10 +11,10 @@ import { ArtifactStore } from '../artifacts/store'
 import type { JobToolServices } from '../jobs/tools'
 
 export function createPluginTools(
-  service: PluginService | undefined,
+  service: PluginExecution | undefined,
   invocation: PluginInvocation,
   signal: AbortSignal,
-  jobs?: Pick<JobToolServices, 'operation'>
+  jobs?: Pick<JobToolServices, 'operation' | 'waitOperation'>
 ) {
   const tools: BotTool[] = []
   const capabilities = new Map<string, string>()
@@ -56,7 +56,26 @@ export function createPluginTools(
           deadline.throwIfAborted()
           invocation.services.authorize(entry.capabilityId)
           if (entry.operation.execution === 'background' && jobs) {
+            const wait = entry.operation.toolWaitWhen
+            const waitsForResult = wait && (args[wait.field] ?? wait.defaultValue) === wait.equals
+            if (waitsForResult && !jobs.waitOperation) {
+              throw new Error('此操作需要受管完成等待接口')
+            }
             const job = await jobs.operation(entry.operation.title, entry.capabilityId, args, callId)
+            if (waitsForResult && jobs.waitOperation) {
+              const result = await jobs.waitOperation(job.id, deadline)
+              return {
+                content: [{ type: 'text', text: JSON.stringify(result) }],
+                details: { jobId: result.id, artifactIds: result.result?.artifactIds ?? [] }
+              }
+            }
+            if (entry.operation.toolWaitForCheckpoint && jobs.waitOperation) {
+              const checkpoint = await jobs.waitOperation(job.id, deadline, 'checkpoint')
+              return {
+                content: [{ type: 'text', text: JSON.stringify(checkpoint) }],
+                details: { jobId: checkpoint.id }
+              }
+            }
             return {
               content: [
                 { type: 'text', text: JSON.stringify({ accepted: true, jobId: job.id, state: job.state }) }

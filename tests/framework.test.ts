@@ -60,8 +60,7 @@ async function fixture(reply: (body: string, index: number) => Response) {
         }
       ],
       groups: [{ id: 'main', candidates: [{ provider: 'test', model: 'test' }] }]
-    }),
-    root
+    })
   )
   const config = {
     bot,

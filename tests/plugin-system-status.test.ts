@@ -6,6 +6,7 @@ import { PluginService } from '../src/plugins/service'
 import { ResourcesConfigSchema } from '../src/resources/schema'
 import { ResourceLibrary } from '../src/resources/library'
 import { RuntimeStatusSchema } from '../src/runtime/status/schema'
+import { ArtifactStore } from '../src/artifacts/store'
 
 test('system status is a scoped read-only RPC, not a selectable model tool or arbitrary host file reader', async () => {
   const env = await pluginFixture()
@@ -57,7 +58,16 @@ test('system status is a scoped read-only RPC, not a selectable model tool or ar
     app.config.framework.defaults.behavior.agentEnabled = false
     await app.coordinator.receive(app.room.id, '/read_system_test {}')
     const message = app.store.listMessages(app.room.id).at(-1)!
-    const value = RuntimeStatusSchema.parse(JSON.parse(message.text))
+    let text = message.text
+    const resultFile = message.attachments.find((entry) => {
+      return entry.name === 'plugin-result.txt'
+    })
+    if (resultFile) {
+      const id = /\/artifacts\/([^/]+)\/content/u.exec(resultFile.url)?.[1]
+      expect(id).toBeDefined()
+      text = await (await new ArtifactStore(app.config.dataDir, app.room.id).content(id!)).file.text()
+    }
+    const value = RuntimeStatusSchema.parse(JSON.parse(text))
     expect(value.observer).toBe('bot-control-plane')
     expect(value.disk?.scope).toBe('bot-data-filesystem')
     expect(value.bot.runtime).toBe('bun')

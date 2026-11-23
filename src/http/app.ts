@@ -43,6 +43,7 @@ import { controlApp } from '../control/routes'
 import { independentResourcesApp } from '../resource-providers/routes'
 import { UncertainHostResult } from '../plugins/rpc/uncertain'
 import { rejectPluginConsoleAccess } from './plugin-origin'
+import { registerPluginStateRoutes } from './plugin-state-routes'
 
 export interface HttpServices {
   configuration(): Configuration
@@ -72,6 +73,9 @@ export function createHttpApp(services: HttpServices) {
   app.use('/api/*', rejectPluginConsoleAccess)
   app.use('/api/*', (c, next) => {
     let maxSize = 128 * 1024
+    if (c.req.method === 'POST' && /^\/api\/plugins\/[^/]+\/configuration\/files$/u.test(c.req.path)) {
+      maxSize = 6 * 1024 * 1024
+    }
     if (c.req.path.startsWith('/api/resource-providers')) {
       maxSize = 1024 * 1024
     }
@@ -105,6 +109,7 @@ export function createHttpApp(services: HttpServices) {
     return c.json({ error: services.configuration().catalog.redact(error.message) }, 400)
   })
   app.route('/api/resource-providers', independentResourcesApp(services))
+  registerPluginStateRoutes(app, services)
   registerProviderRoutes(app, services.providerEditor, () => {
     coordinator.events.emit({ type: 'config' })
   })

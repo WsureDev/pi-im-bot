@@ -18,7 +18,9 @@ import { ReadConfigSecretsSchema, configurationSecretValues } from '../plugins/c
 import { ResourceCommandSchema } from './commands/schema'
 import { validateResourceCommands } from './commands/catalog'
 import { callResource } from './service'
-import { resourceConnection } from './adapters/connection'
+import { validateResourceConnection } from './native/registry'
+import { ArtifactStore } from '../artifacts/store'
+import { resourceModels } from './native/model'
 import { SettingsEditError } from '../settings/editor'
 
 const RevisionSchema = z.object({ revision: z.string() }).strict()
@@ -37,6 +39,12 @@ export function independentResourcesApp(host: HttpServices) {
     const definitions = resourceDefinitions(state.config)
     return IndependentRegistrySchema.parse({
       revision: state.revision,
+      customProtocolIds: state.config.resourceProtocols.map((entry) => {
+        return entry.id
+      }),
+      customProviderIds: state.config.providerDefinitions.map((entry) => {
+        return entry.id
+      }),
       protocols: definitions.protocols,
       definitions: definitions.providers,
       instances: state.config.providers.map((instance) => {
@@ -105,6 +113,9 @@ export function independentResourcesApp(host: HttpServices) {
     }
   }
   function changed() {
+    for (const plugin of host.configuration().resources.config.plugins) {
+      host.pluginEditor.resourceOptions.request(plugin.id)
+    }
     host.coordinator.events.emit({ type: 'config' })
   }
   app.get('/', async (c) => {
@@ -146,7 +157,10 @@ export function independentResourcesApp(host: HttpServices) {
         throw new Error('资源不存在')
       }
       if (input.enabled) {
-        resourceConnection(instance)
+        const provider = resourceDefinitions(config).providers.find((entry) => {
+          return entry.id === instance.provider
+        })!
+        validateResourceConnection(provider, instance)
       }
       instance.enabled = input.enabled
     })
@@ -202,7 +216,7 @@ export function independentResourcesApp(host: HttpServices) {
       )
       validateConfig(definition, values)
       validateConfigReadonly(definition, instance.configuration, values)
-      resourceConnection({ ...instance, configuration: values })
+      validateResourceConnection(state.provider, { ...instance, configuration: values })
       instance.configuration = values
     })
     changed()
@@ -217,7 +231,27 @@ export function independentResourcesApp(host: HttpServices) {
           return host.configuration().resources.config
         },
         call,
-        { requestId: crypto.randomUUID(), signal: c.req.raw.signal, authorize() {} }
+        {
+          requestId: crypto.randomUUID(),
+          signal: c.req.raw.signal,
+          authorize() {},
+          host: {
+            optionsChanged: (id) => {
+              host.pluginEditor.resourceOptions.resourceChanged(id)
+            },
+            dataDir: host.configuration().dataDir,
+            models: resourceModels(
+              () => {
+                return host.configuration().catalog
+              },
+              host.configuration().framework.defaults.preferences.providerGroup,
+              ''
+            ),
+            durable: { runtime: host.jobs.runtime, jobs: host.jobs.repository },
+            artifacts: new ArtifactStore(host.configuration().dataDir, 'resource:' + call.resourceId),
+            owner: { scope: 'resource:' + call.resourceId, caller: 'console', phase: 'execute' }
+          }
+        }
       )
     )
   })

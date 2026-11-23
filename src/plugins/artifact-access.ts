@@ -2,6 +2,7 @@ import { namedService, serviceRevision } from '../services/resources'
 import type { ArtifactAccess } from '../artifacts/access'
 import type { Configuration } from '../config/load'
 import { gsviExecutionRevision } from '../services/gsvi/identity'
+import { resolveResource } from '../resource-providers/registry'
 
 /** Persistent dependencies survive Worker completion and Job recovery. */
 export function assertArtifactAccess(
@@ -35,6 +36,15 @@ export function assertArtifactDeliveryAccess(
     })
   ) {
     throw new Error('产物所需插件授权已撤销')
+  }
+  for (const [alias, binding] of Object.entries(owner.resources ?? {})) {
+    if (
+      instance.resources[alias] !== binding.id ||
+      resolveResource(config.resources.config, binding.id, binding.protocol, binding.method).revision !==
+        binding.revision
+    ) {
+      throw new Error('产物所需资源绑定或版本已变更')
+    }
   }
   for (const [alias, binding] of Object.entries(owner.services)) {
     const current = namedService(config, binding.id)

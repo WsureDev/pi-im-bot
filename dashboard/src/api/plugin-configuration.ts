@@ -25,6 +25,7 @@ export interface ConfigurationContext {
   editable(path: string, field: ConfigField): boolean
   inherit(path: string, enabled: boolean): void
 }
+export const PluginConfigIdKey: InjectionKey<() => string> = Symbol('plugin-config-id')
 export const ConfigurationKey: InjectionKey<ConfigurationContext> = Symbol('plugin-configuration')
 
 export function setConfigurationOverride(

@@ -1,4 +1,4 @@
-import type { PluginService } from '../service'
+import type { PluginExecution } from '../execution'
 import type { PluginInvocation } from '../invocation'
 import { pluginHookId } from '../identity'
 import { ContextContributionSchema, contextCollectNode } from './points'
@@ -7,7 +7,7 @@ import type { PluginHookTrace } from './transform'
 import { projectInput } from '../../messages/projection'
 
 export async function pluginContext(
-  service: PluginService | undefined,
+  service: PluginExecution | undefined,
   invocation: PluginInvocation,
   signal: AbortSignal,
   report: (trace: PluginHookTrace) => void

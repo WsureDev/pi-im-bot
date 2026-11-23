@@ -119,6 +119,10 @@ export class FrameworkEditor {
     for (const patch of patches) {
       const personaId = patch.preferences?.personaId
       const group = patch.preferences?.providerGroup
+      const vision = patch.preferences?.visionProvider
+      if (vision && !catalog.candidates.has(vision)) {
+        throw new SettingsEditError('图片描述模型不存在或未启用：' + vision)
+      }
       if (personaId && !personaIds.has(personaId)) {
         throw new SettingsEditError(`人格仍被引用或不存在：${personaId}`)
       }

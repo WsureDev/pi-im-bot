@@ -3,7 +3,7 @@ import { HistorySchema } from './outputs'
 import type { Tx } from '@earendil-works/pi-durable'
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context'
 import { z } from 'zod'
-import type { DurableAgentRuntime } from '../../agent/durable/runtime'
+import type { AgentRuntime } from '../../agent/runtime'
 import type { ArtifactStore } from '../../artifacts/store'
 import type { JobRepository } from '../../jobs/repository'
 import { revision } from '../../settings/resolve'
@@ -13,6 +13,8 @@ import { comfyRevision, workflowDigest, type ComfyService, type Workflow } from 
 import { ComfyTransportError, comfyRequest } from './http'
 import { ComfyOutputRefused } from './errors'
 import { outputFiles, validateImage } from './outputs'
+import { nativeOutputFiles } from '../../resource-providers/native/comfy/outputs'
+import type { NativeGraph } from '../../resource-providers/native/comfy/contracts'
 import type { ComfyItem } from './protocol'
 
 export interface ComfyOwner {
@@ -20,6 +22,7 @@ export interface ComfyOwner {
   room: string
   job: string
   revision: number
+  managedJob?: boolean
 }
 const PromptSchema = z.object({ prompt_id: z.string().regex(/^[a-zA-Z0-9_-]{1,128}$/u) })
 const QueueSchema = z.object({
@@ -29,7 +32,7 @@ const QueueSchema = z.object({
 export class ComfyBroker {
   private readonly active = new Map<string, Promise<ComfyItem>>()
   constructor(
-    private readonly runtime: DurableAgentRuntime,
+    private readonly runtime: AgentRuntime,
     private readonly jobs: JobRepository
   ) {}
   key(owner: ComfyOwner, alias: string, item: number) {
@@ -62,7 +65,7 @@ export class ComfyBroker {
       } else {
         delete activity.owners[receipt.key]
       }
-      if (receipt.promptId) {
+      if (receipt.promptId && receipt.managedJob !== false) {
         await this.jobs.change(tx, receipt.job, receipt.revision, (job) => {
           job.external = {
             ...job.external,
@@ -118,27 +121,90 @@ export class ComfyBroker {
     signal: AbortSignal,
     authorize: () => void
   ) {
+    return this.submitPrepared(
+      owner,
+      alias,
+      item,
+      service,
+      {
+        id: workflow.id,
+        digest: workflowDigest(workflow),
+        parameterDigest: revision(parameters),
+        outputs: workflow.outputs,
+        prepare: () => {
+          return compileWorkflow(workflow, parameters)
+        }
+      },
+      artifacts,
+      signal,
+      authorize
+    )
+  }
+  async submitNative(
+    owner: ComfyOwner,
+    alias: string,
+    item: number,
+    service: ComfyService,
+    request: {
+      id: string
+      digest: string
+      parameterDigest: string
+      outputs: string[]
+      prepare(): Promise<NativeGraph>
+    },
+    artifacts: ArtifactStore,
+    signal: AbortSignal,
+    authorize: () => void
+  ) {
+    return this.submitPrepared(
+      owner,
+      alias,
+      item,
+      service,
+      { ...request, firstImage: true },
+      artifacts,
+      signal,
+      authorize
+    )
+  }
+  private async submitPrepared(
+    owner: ComfyOwner,
+    alias: string,
+    item: number,
+    service: ComfyService,
+    request: {
+      id: string
+      digest: string
+      parameterDigest: string
+      outputs: string[]
+      firstImage?: boolean
+      prepare(): NativeGraph | Promise<NativeGraph>
+    },
+    artifacts: ArtifactStore,
+    signal: AbortSignal,
+    authorize: () => void
+  ) {
     const key = this.key(owner, alias, item)
     return this.exclusive(key, async () => {
       authorize()
       const previous = await this.read(key)
       if (previous) {
         if (
-          previous.parametersDigest !== revision(parameters) ||
-          previous.workflowDigest !== workflowDigest(workflow) ||
+          previous.parametersDigest !== request.parameterDigest ||
+          previous.workflowDigest !== request.digest ||
           previous.serviceRevision !== comfyRevision(service)
         ) {
           throw new Error('提交键已绑定不同的原服务/模板/参数，未重发')
         }
         return this.view(previous)
       }
-      const graph = compileWorkflow(workflow, parameters)
+      const graph = await request.prepare()
       const payload = { prompt: graph, client_id: key }
       const store = artifacts.forOwner('comfy:' + key + ':request')
       const existing = await store.owned('comfy:' + key + ':request')
-      let request = existing[0]
-      if (!request) {
-        request = await store.save(
+      let requestArtifact = existing[0]
+      if (!requestArtifact) {
+        requestArtifact = await store.save(
           'comfy-request.json',
           'application/json',
           'comfy-request:' + key,
@@ -151,14 +217,15 @@ export class ComfyBroker {
         key,
         service: structuredClone(service),
         serviceRevision: comfyRevision(service),
-        workflow: workflow.id,
-        workflowDigest: workflowDigest(workflow),
-        parametersDigest: revision(parameters),
-        outputs: workflow.outputs,
+        workflow: request.id,
+        workflowDigest: request.digest,
+        parametersDigest: request.parameterDigest,
+        outputs: request.outputs,
+        firstImage: request.firstImage,
         status: 'outcome_unknown',
         recorded: false,
         dispatched: false,
-        requestArtifactId: request.id,
+        requestArtifactId: requestArtifact.id,
         artifactIds: [],
         cancelDispatched: false,
         createdAt: Date.now()
@@ -202,7 +269,7 @@ export class ComfyBroker {
         }
         if (error instanceof ComfyTransportError && error.outcome === 'rejected') {
           receipt.status = 'failed'
-          receipt.error = 'Comfy明确拒绝本次提交'
+          receipt.error = error.detail ?? 'Comfy明确拒绝本次提交'
         } else {
           receipt.error = '提交结果未知，未自动重提'
         }
@@ -318,11 +385,16 @@ export class ComfyBroker {
           signal,
           receipt.service.maxHistoryBytes
         )
-        const output = outputFiles(
-          JSON.parse(history.bytes.toString('utf8')),
-          receipt.promptId,
-          receipt.outputs
-        )
+        let output
+        if (receipt.firstImage) {
+          output = nativeOutputFiles(
+            JSON.parse(history.bytes.toString('utf8')),
+            receipt.promptId,
+            receipt.outputs[0]
+          )
+        } else {
+          output = outputFiles(JSON.parse(history.bytes.toString('utf8')), receipt.promptId, receipt.outputs)
+        }
         authorize(receipt)
         if (output.status === 'failed') {
           receipt.status = 'failed'

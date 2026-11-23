@@ -23,6 +23,9 @@ export class PluginConfigValidationError extends Error {
 }
 function typeDefault(field: ConfigField): z.infer<typeof ConfigValuesSchema>[string] {
   if (field.default !== undefined) {
+    if (field.type === 'bool' && typeof field.default === 'string') {
+      return ['true', '1', 'yes', 'on'].includes(field.default.toLowerCase())
+    }
     return structuredClone(field.default)
   }
   if (field.type === 'bool') {
@@ -31,7 +34,7 @@ function typeDefault(field: ConfigField): z.infer<typeof ConfigValuesSchema>[str
   if (field.type === 'int' || field.type === 'float') {
     return 0
   }
-  if (field.type === 'list' || field.type === 'template_list') {
+  if (field.type === 'list' || field.type === 'template_list' || field.type === 'file') {
     return []
   }
   if (field.type === 'object' || field.type === 'dict') {
@@ -130,6 +133,8 @@ function fieldValidator(field: ConfigField): z.ZodType {
     } else {
       validator = number
     }
+  } else if (field.type === 'file') {
+    validator = z.array(z.string().regex(/^upload:[a-f0-9]{64}\.(?:png|jpg|jpeg)$/u)).max(1000)
   } else if (field.type === 'list') {
     let list = z.array(z.string().max(32000)).max(1000)
     if (field.required) {

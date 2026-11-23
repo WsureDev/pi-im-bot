@@ -85,13 +85,30 @@ export async function executePluginCommand(
     const job = await jobs
       .forInvocation(jobInvocation, 'command')
       .operation(operation.operation.title, capability, args, callId)
-    return { summary: `已受理「${job.title}」，任务 ${job.id.slice(0, 8)}。完成后会回复。`, artifactIds: [] }
+    if (operation.operation.commandResponse === 'silent') {
+      return { summary: '', artifactIds: [], silent: true }
+    }
+    return {
+      summary: `已受理「${job.title}」，任务 ${job.id.slice(0, 8)}。完成后会回复。`,
+      artifactIds: [],
+      silent: false
+    }
   }
   const result = await service.execute(invocation, capability, args, callId, signal)
   invocation.services.authorize(entry.capabilityId)
-  return projectPluginResult(
-    completedPluginResult(result),
+  const completed = completedPluginResult(result)
+  const projected = await projectPluginResult(
+    completed,
     capability,
     new ArtifactStore(invocation.config.dataDir, invocation.room.id)
   )
+  if (
+    completed.suppressText &&
+    !projected.summary &&
+    !projected.artifactIds.length &&
+    !projected.messages?.length
+  ) {
+    return { ...projected, silent: true }
+  }
+  return projected
 }

@@ -2,6 +2,7 @@ import { MessageFormatSchema } from './message-format'
 import { z } from 'zod'
 import { AttachmentSchema } from './message'
 import { RenderAdmissionSchema, RenderPlanSchema, RenderRejectionSchema } from './rendering'
+import { LogicalMessageSchema } from './logical-message'
 
 export const OutboundSchema = z.object({
   id: z.string(),
@@ -16,6 +17,8 @@ export const OutboundSchema = z.object({
     .array(z.object({ artifactIds: z.array(z.string()), platformMessageIds: z.array(z.string()) }))
     .optional(),
   renderedText: z.string().optional(),
+  renderedMessages: z.array(LogicalMessageSchema).optional(),
+  forwardMessages: z.array(LogicalMessageSchema).optional(),
   attachments: z.array(AttachmentSchema).default([]),
   artifactIds: z.array(z.string()).default([]),
   requestedArtifactIds: z.array(z.string()).optional(),

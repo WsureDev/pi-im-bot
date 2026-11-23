@@ -18,7 +18,14 @@ export function completedPluginResult(outcome: PluginOperationOutcome) {
 
 export async function projectPluginResult(raw: PluginResult, capability: string, artifacts: ArtifactStore) {
   const result = PluginResultSchema.parse(raw)
-  const artifactIds = [...new Set(result.artifactIds)]
+  const artifactIds = [
+    ...new Set([
+      ...result.artifactIds,
+      ...(result.messages ?? []).flatMap((part) => {
+        return part.artifactIds
+      })
+    ])
+  ]
   for (const id of artifactIds) {
     await artifacts.metadata(id)
   }
@@ -45,6 +52,7 @@ export async function projectPluginResult(raw: PluginResult, capability: string,
     businessStatus?: PluginResult['businessStatus']
     factsComplete?: boolean
     items?: PluginResult['items']
+    messages?: PluginResult['messages']
   } = { summary: text, artifactIds }
   if (result.format !== undefined) {
     projected.format = result.format
@@ -60,6 +68,9 @@ export async function projectPluginResult(raw: PluginResult, capability: string,
   }
   if (result.items !== undefined) {
     projected.items = result.items
+  }
+  if (result.messages) {
+    projected.messages = result.messages
   }
   return projected
 }

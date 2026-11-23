@@ -1,6 +1,6 @@
 import type { ChannelRegistry } from '../channels/registry'
 import type { Address } from '../domain/message'
-import type { ChannelMedia, SendControl } from '../domain/channel-media'
+import type { ChannelMedia, SendControl, ChannelMessagePart } from '../domain/channel-media'
 import { PartialDelivery } from '../domain/channel-media'
 
 export async function sendTransport(
@@ -11,11 +11,12 @@ export async function sendTransport(
   format: 'direct' | 'forward',
   itemized: boolean,
   control: SendControl,
-  part: (artifactIds: string[], ids: string[]) => void
+  part: (artifactIds: string[], ids: string[]) => void,
+  parts?: readonly ChannelMessagePart[]
 ) {
   const adapter = channels.get(address.channel)
   if (format === 'forward' && adapter.capabilities.forward && adapter.sendForward) {
-    const receipt = await adapter.sendForward(address, text, media, control)
+    const receipt = await adapter.sendForward(address, text, media, control, parts)
     part(
       media.map((file) => {
         return file.id
@@ -24,19 +25,26 @@ export async function sendTransport(
     )
     return receipt
   }
-  if (!itemized || media.length === 0) {
+  if (!parts && (!itemized || media.length === 0)) {
     return channels.send(address, text, media, control)
   }
   let ids: string[] = []
   let sentAt = Date.now()
   try {
-    for (const [index, file] of media.entries()) {
+    const groups =
+      parts ??
+      media.map((file, index) => {
+        let body = ''
+        if (index === 0) {
+          body = text
+        }
+        return { text: body, media: [file] }
+      })
+    for (const group of groups) {
       let body = ''
-      if (index === 0) {
-        body = text
-      }
+      body = group.text
       const prior = ids
-      const receipt = await channels.send(address, body, [file], {
+      const receipt = await channels.send(address, body, group.media, {
         beforePart: control.beforePart,
         received: async (current, at) => {
           ids = [...new Set([...prior, ...current])]
@@ -46,7 +54,12 @@ export async function sendTransport(
       })
       ids = [...new Set([...prior, ...receipt.messageIds])]
       sentAt = receipt.sentAt
-      part([file.id], receipt.messageIds)
+      part(
+        group.media.map((file) => {
+          return file.id
+        }),
+        receipt.messageIds
+      )
       await control.received?.(ids, sentAt)
     }
   } catch (error) {

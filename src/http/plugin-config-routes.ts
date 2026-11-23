@@ -1,3 +1,6 @@
+import { z } from 'zod'
+import { storeConfigImage, readConfigFile, configFileName } from '../plugins/configuration/files'
+import type { ConfigField } from '../plugins/configuration/schema'
 import type { Hono } from 'hono'
 import { sValidator } from '@hono/standard-validator'
 import type { PluginConfigurationEditor } from '../plugins/configuration/editor'
@@ -13,7 +16,49 @@ export function registerPluginConfigRoutes(
   editor: PluginConfigurationEditor,
   changed: () => void
 ) {
+  app.post('/api/plugins/:id/configuration/files', async (c) => {
+    const form = await c.req.formData()
+    const pointer = z.string().startsWith('/').max(2000).parse(form.get('field'))
+    const file = z.instanceof(File).parse(form.get('file'))
+    const state = await editor.prepare(c.req.param('id'), { level: 'instance' })
+    let fields = state.definition
+    let selected: ConfigField | undefined
+    for (const encoded of pointer.slice(1).split('/')) {
+      const key = encoded.replaceAll('~1', '/').replaceAll('~0', '~')
+      selected = fields?.[key]
+      fields = selected?.items
+    }
+    if (!selected || selected.type !== 'file' || selected.readonly) {
+      throw new Error('此配置字段不接受文件')
+    }
+    const result = await storeConfigImage(
+      editor.plugins.configuration().dataDir,
+      c.req.param('id'),
+      file,
+      selected.file_types ?? ['png', 'jpg', 'jpeg']
+    )
+    return c.json(result, 201)
+  })
   const order = new PluginOrderEditor(editor)
+  app.get('/api/plugins/:id/configuration/files/:token/name', async (c) => {
+    await editor.prepare(c.req.param('id'), { level: 'instance' })
+    return c.json(
+      await configFileName(editor.plugins.configuration().dataDir, c.req.param('id'), c.req.param('token'))
+    )
+  })
+  app.get('/api/plugins/:id/configuration/files/:token', async (c) => {
+    await editor.prepare(c.req.param('id'), { level: 'instance' })
+    const file = await readConfigFile(
+      editor.plugins.configuration().dataDir,
+      c.req.param('id'),
+      c.req.param('token'),
+      0,
+      5 * 1024 * 1024
+    )
+    return new Response(Buffer.from(file.data, 'base64'), {
+      headers: { 'content-type': file.mimeType, 'cache-control': 'no-store' }
+    })
+  })
   const pipeline = new PluginPipelineEditor(editor)
   app.post(
     '/api/plugins/:id/configuration/secrets',

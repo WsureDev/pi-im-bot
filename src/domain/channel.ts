@@ -1,5 +1,5 @@
 import type { Address, DeliveryReceipt, IncomingMessage } from './message'
-import type { ChannelMedia, SendControl } from './channel-media'
+import type { ChannelMedia, SendControl, ChannelMessagePart } from './channel-media'
 import type { IncomingMedia, MediaBytes } from '../media/schema'
 
 export interface ChannelCapabilities {
@@ -15,6 +15,7 @@ export interface ChannelCapabilities {
 }
 
 export interface ChannelAdapter {
+  identity?(address: Address, signal: AbortSignal): Promise<string | undefined>
   id: string
   capabilities: ChannelCapabilities
   send(
@@ -27,7 +28,8 @@ export interface ChannelAdapter {
     address: Address,
     text: string,
     media: readonly ChannelMedia[],
-    control?: SendControl
+    control?: SendControl,
+    parts?: readonly ChannelMessagePart[]
   ): Promise<DeliveryReceipt>
   recall?(address: Address, messageId: string): Promise<void>
   readMedia?(address: Address, media: IncomingMedia, signal: AbortSignal): Promise<MediaBytes>

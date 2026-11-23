@@ -70,8 +70,7 @@ export async function jobHarness(
         }
       ],
       groups: [{ id: 'main', candidates: [{ provider: 'test', model: 'test' }] }]
-    }),
-    root
+    })
   )
   const config = {
     bot: BotConfigSchema.parse({}),

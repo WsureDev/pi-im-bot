@@ -1,7 +1,9 @@
+import { DurableAgentRuntime } from '../src/agent/durable/runtime'
+import { MemoryStorage } from '@earendil-works/pi-durable'
 import { expect, test } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { z } from 'zod'
-import { runPi } from '../src/agent/pi-runner'
+import { runAgent } from './agent-runtime'
 import { BotConfigSchema } from '../src/config/schema'
 import { RoomSchema } from '../src/domain/message'
 import { ProviderCatalog } from '../src/providers/catalog'
@@ -97,10 +99,9 @@ test('HTTP MCP uses Pi discovery and execution, archives long outputs, and never
           }
         ],
         groups: [{ id: 'main', candidates: [{ provider: 'test', model: 'test' }] }]
-      }),
-      root
+      })
     )
-    const result = await runPi(
+    const result = await runAgent(
       {
         bot: BotConfigSchema.parse({}),
         catalog,
@@ -199,8 +200,7 @@ for (const scenario of ['revoked', 'changed', 'failed', 'timeout'] as const) {
             }
           ],
           groups: [{ id: 'main', candidates: [{ provider: 'test', model: 'test' }] }]
-        }),
-        root
+        })
       )
       const config = {
         bot: BotConfigSchema.parse({}),
@@ -222,6 +222,7 @@ for (const scenario of ['revoked', 'changed', 'failed', 'timeout'] as const) {
         events,
         new DeliveryService(channels, store, events)
       )
+      coordinator.attachDurable(await new DurableAgentRuntime().open(new MemoryStorage()))
       const room = coordinator.createMockRoom('test', 'group')
       store.saveRoom({ ...room, mode: 'live' })
       beforeTool = () => {
