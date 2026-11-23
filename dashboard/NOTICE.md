@@ -8,13 +8,13 @@
 
 | 上游部分                                                                                                | Pi 适配                                                                                                                                                               |
 | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FullLayout、VerticalSidebar、VerticalHeader、LightTheme、DarkTheme                                      | 保留 Vuetify 应用布局和主题，接入 Pi 八个页面、渠道与连接状态；裁剪为 Pi 已有功能。                                                                                   |
+| FullLayout、VerticalSidebar、VerticalHeader、LightTheme、DarkTheme                                      | 保留页面、渠道与连接状态的职责。布局、配色和响应式导航已重写。                                                                                   |
 | AstrBotConfig、ConfigItemRenderer、ListConfigItem、ObjectEditor、TemplateListEditor、ConfigDefaultReset | 保留上游递归配置、列表/字典/模板编辑交互和样式；按 schema 而非返回值枚举字段，接入 Pi 继承、秘密 actions、稳定条目标识、只读约束及草稿确认。Monaco 改为按需本地加载。 |
-| ChatMessageList、ChatInput、MarkdownMessagePart                                                         | 保留上游消息气泡、附件、输入区和 Markdown 展示；数据与事件改接 Pi 消息、媒体、引用、撤回和实时输出。工具追踪与交付回执由现成 Vuetify 控件显示。                       |
+| ChatMessageList、ChatInput、MarkdownMessagePart                                                         | 保留上游消息气泡、附件、输入区和 Markdown 展示；数据与事件改接 Pi 消息、媒体、引用、撤回和实时输出。工具事件由 UI SDK 时间线、耗时图与展开面板显示。                       |
 | PluginWorkspacePage、ProviderPage、PlatformPage、ConfigPage、CronJobPage、ChatPage                      | 依据 Pi 的实际 API 裁剪及重接页面。模型/组、配置层级、OneBot 目标、计划与任务仍由 Pi 后端校验。                                                                       |
 | UnsavedChangesConfirmDialog、ConfirmDialog、配置文案解析、中文文案、剪贴板工具                          | 复用成熟对话框、文案和 LAN HTTP 剪贴板回退，绑定 Pi 的页面事件。剪贴板工具的临时 textarea 只用于用户点击复制。                                                        |
 | MDI 子集                                                                                                | 使用上游固定二进制和 CSS；应用图标选自该子集，避免下载完整字体。                                                                                                      |
 
-Pi 独有的后台任务、资源、运行环境和编排页面直接组合 Vuetify 的表格、表单、选项卡、展开面板及菜单。新增接口转换位于 `api/`，页面状态位于 `stores/`；没有另建基础控件或 Schema 渲染器体系。
+工作台使用 @ui-sdk/vue 与 @ui-sdk/core（Apache-2.0）。Pi 在 src/ui 内实现主题、布局、配置控件和管理表格。数据转换位于 api/，页面状态位于 stores/。
 
 2026-11-16 的设置页调整另外参考同一 commit 的 `components/config/AstrBotCoreConfigWrapper.vue`、`components/shared/PersonaForm.vue` 和相关 SCSS，采用分类导航、主要字段直接展示及明确的操作层次。根据 Pi 的使用反馈，导航改为定位展开的分组；配色与编辑器尺寸经过适配。参考文件及原始 SHA-256 另记于 `UPSTREAM.json` 的 `designReferences`。

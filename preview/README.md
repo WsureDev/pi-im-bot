@@ -17,7 +17,7 @@
 
 ## 研究结论与边界
 
-图组件选择 **Vue Flow 1.48.2 + Dagre 3.1.3**，继续使用 Vue 3、Vuetify、Pinia、Vue Router 和 Vite。比较依据和 AstrBot 源码参考见 [RESEARCH.md](docs/RESEARCH.md)。资源接口、声明、生命周期、上下文信任边界见 [CONTRACT.md](docs/CONTRACT.md)。
+图组件选择 **Vue Flow 1.48.2 + Dagre 3.1.3**，当前构建使用 Vue 3、UI SDK、Pinia、Vue Router 和 Vite。比较依据和 AstrBot 源码参考见 [RESEARCH.md](docs/RESEARCH.md)。资源接口、声明、生命周期、上下文信任边界见 [CONTRACT.md](docs/CONTRACT.md)。
 
 这不是生产插件运行时迁移。现有 Bot 的七个真实切入点声明与排序算法被复用；演示注册项、预设、提供者、用户和群均为本地样例。Provider 发现不会访问服务地址，权限通过后只调用本地演示处理器，不运行 Pi/模型、QQ 发信、TTS 或 GPU 工作流。现有 MCP / Skill 页面保留，供应商服务页在此预览隐藏。
 

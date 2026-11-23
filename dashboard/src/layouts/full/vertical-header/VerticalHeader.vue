@@ -1,20 +1,16 @@
 <script setup lang="ts">
-import { useTheme } from 'vuetify'
+import UiButton from '@/ui/UiButton.vue'
+import WorkspaceSearch from '../WorkspaceSearch.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiIcon from '@/ui/UiIcon.vue'
+import { useAppearance } from '@/ui/appearance'
 import { useWorkspace } from '@/stores/workspace'
 import { useNotifications } from '@/stores/notifications'
 import { mutate } from '@/api/http'
 const emit = defineEmits<{ (event: 'toggleNavigation'): void }>()
 const workspace = useWorkspace()
 const notifications = useNotifications()
-const theme = useTheme()
-function toggleTheme() {
-  let name = 'PurpleThemeDark'
-  if (theme.global.current.value.dark) {
-    name = 'PurpleTheme'
-  }
-  theme.global.name.value = name
-  localStorage.setItem('pi.theme', name)
-}
+const theme = useAppearance()
 async function reload() {
   await mutate('/api/config/reload')
   await workspace.refresh()
@@ -22,33 +18,36 @@ async function reload() {
 }
 </script>
 <template>
-  <v-app-bar elevation="0" border="b">
-    <v-app-bar-nav-icon
+  <header class="pi-topbar">
+    <UiButton
+      class="icon-only"
+      icon="mdi-menu"
       variant="text"
       color="on-surface"
       aria-label="展开或收起导航"
       @click="emit('toggleNavigation')"
     />
-    <v-app-bar-title class="font-weight-bold"
-      ><v-icon icon="mdi-robot-outline" color="primary" class="mr-2" />Pi IM Bot</v-app-bar-title
+    <div class="pi-brand font-weight-bold">
+      <UiIcon icon="mdi-robot-outline" color="primary" class="mr-2" />Pi IM Bot
+    </div>
+    <WorkspaceSearch />
+    <UiChip v-if="workspace.connected" size="small" color="success" prepend-icon="mdi-check-circle-outline"
+      >已连接</UiChip
     >
-    <v-chip v-if="workspace.connected" size="small" color="success" prepend-icon="mdi-check-circle-outline"
-      >已连接</v-chip
-    >
-    <v-chip v-else size="small" color="warning">重新连接中</v-chip>
-    <v-btn
+    <UiChip v-else size="small" color="warning">重新连接中</UiChip>
+    <UiButton
       icon="mdi-refresh"
       variant="text"
       color="on-surface"
       aria-label="重载配置"
       @click="notifications.run(reload)"
     />
-    <v-btn
+    <UiButton
       icon="mdi-theme-light-dark"
       variant="text"
       color="on-surface"
       aria-label="切换主题"
-      @click="toggleTheme"
+      @click="theme.toggle"
     />
-  </v-app-bar>
+  </header>
 </template>

@@ -1,0 +1,80 @@
+.pi-data-table,
+.pi-table-scroll {
+  min-width: 0;
+  max-width: 100%;
+}
+.pi-table-scroll {
+  width: 100%;
+  overflow: auto;
+}
+.pi-table-scroll table {
+  border-spacing: 0;
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+}
+.pi-table-scroll th {
+  padding: 9px 12px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: rgb(var(--pi-secondaryText));
+  font-weight: 650;
+  background: var(--pi-surface-soft);
+  white-space: nowrap;
+}
+.pi-table-scroll td {
+  padding: 10px 12px;
+  border-top: var(--pi-hair);
+  vertical-align: middle;
+}
+.pi-table-scroll th button {
+  padding: 0;
+  font: inherit;
+  text-align: left;
+}
+.pi-table-scroll tr:hover > td {
+  background: rgba(var(--pi-primary), 0.025);
+}
+.pi-table-scroll td .pi-btn {
+  margin: 2px;
+}
+.pi-empty {
+  text-align: center;
+  color: rgb(var(--pi-secondaryText));
+  height: 72px;
+}
+.pi-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 9px 14px;
+  color: rgb(var(--pi-secondaryText));
+  font-size: 12px;
+  min-height: 36px;
+  border-top: var(--pi-hair);
+}
+.pi-table-footer nav,
+.pi-table-footer [aria-label='表格分页'] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pi-table-footer button,
+.pi-table-footer select,
+.pi-table-disclosure {
+  min-height: 29px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: var(--pi-hair);
+  background: rgb(var(--pi-surface));
+}
+
+.pi-table-scroll {
+  position: relative;
+}
+
+.pi-table-disclosure .pi-rotated {
+  transform: rotate(90deg);
+}

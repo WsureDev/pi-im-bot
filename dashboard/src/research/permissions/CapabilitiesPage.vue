@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiTableFrame from '@/ui/table/UiTableFrame.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { computed, onMounted, ref, toRaw } from 'vue'
 import type { CapabilityPolicy } from '@demo/contracts/capabilities'
 import { useDraft } from '@/composables/drafts'
@@ -73,22 +80,23 @@ onMounted(() => {
       <h1 class="text-h5 font-weight-bold">指令与 Tool</h1>
       <p class="text-medium-emphasis mt-1">在一份预设中管理所有入口，分别定义群聊与私聊的使用范围。</p>
     </div>
-    <v-spacer /><v-btn color="primary" variant="tonal" to="/trigger-context">验证权限</v-btn>
+    <span class="pi-spacer" /><UiButton color="primary" variant="tonal" to="/trigger-context"
+      >验证权限</UiButton
+    >
   </div>
-  <v-alert type="info" variant="tonal" class="mb-5"
-    >同一能力的指令和 Tool 共用角色策略，分别控制入口启停。Tool
-    使用原始触发人的身份，不能通过模型调用绕过群聊权限。</v-alert
-  >
+  <div data-tone="info" class="pi-alert mb-5">
+    同一能力的指令和 Tool 共用角色策略，分别控制入口启停。Tool
+    使用原始触发人的身份，不能通过模型调用绕过群聊权限。
+  </div>
   <div class="d-flex flex-wrap ga-3 mb-4">
-    <v-text-field
+    <UiText
       v-model="search"
       label="搜索指令、Tool 或插件"
       prepend-inner-icon="mdi-magnify"
-      hide-details
       clearable
       @click:clear="search = ''"
       style="min-width: 240px"
-    /><v-select
+    /><UiChoice
       v-model="filter"
       label="显示入口"
       :items="[
@@ -96,13 +104,12 @@ onMounted(() => {
         { title: '包含指令', value: 'commands' },
         { title: '包含 Tool', value: 'tools' }
       ]"
-      hide-details
       style="max-width: 230px"
     />
   </div>
-  <v-alert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</v-alert>
-  <v-card>
-    <v-table class="capability-table"
+  <div v-if="error" data-tone="error" class="pi-alert mb-4">{{ error }}</div>
+  <UiCard>
+    <UiTableFrame class="capability-table"
       ><thead>
         <tr>
           <th>能力 / 所属插件</th>
@@ -124,72 +131,61 @@ onMounted(() => {
               <div class="text-caption text-medium-emphasis">{{ capability.id }}</div>
             </td>
             <td>
-              <v-switch
+              <UiCheck
                 v-model="policies[capability.id].enabled"
-                color="primary"
-                hide-details
                 :aria-label="capability.title + '能力启用'"
               />
             </td>
             <td>
               <template v-if="capability.commands.length"
                 ><div class="text-caption mb-1">{{ capability.commands.join(' · ') }}</div>
-                <v-switch
+                <UiCheck
                   v-model="policies[capability.id].commandEnabled"
                   :disabled="!policies[capability.id].enabled"
-                  color="primary"
-                  hide-details
                   :aria-label="capability.title + '指令启用'" /></template
               ><span v-else class="text-medium-emphasis">无指令</span>
             </td>
             <td>
               <template v-if="capability.tool"
                 ><code>{{ capability.tool }}</code
-                ><v-switch
+                ><UiCheck
                   v-model="policies[capability.id].toolEnabled"
                   :disabled="!policies[capability.id].enabled"
-                  color="secondary"
-                  hide-details
                   :aria-label="capability.title + 'Tool启用'" /></template
               ><span v-else class="text-medium-emphasis">无 Tool</span>
             </td>
             <td>
-              <v-select
+              <UiChoice
                 :model-value="audienceValue(policies[capability.id].group)"
                 :items="groupOptions"
                 :disabled="!policies[capability.id].enabled"
                 :aria-label="capability.title + '群聊权限'"
-                hide-details
-                density="compact"
                 @update:model-value="setAudience(policies[capability.id], 'group', $event)"
               />
             </td>
             <td>
-              <v-select
+              <UiChoice
                 :model-value="audienceValue(policies[capability.id].direct)"
                 :items="directOptions"
                 :disabled="!policies[capability.id].enabled"
                 :aria-label="capability.title + '私聊权限'"
-                hide-details
-                density="compact"
                 @update:model-value="setAudience(policies[capability.id], 'direct', $event)"
               />
             </td></tr
         ></template>
       </tbody>
-    </v-table>
-    <v-card-text v-if="!entries.length">没有匹配的能力。</v-card-text>
-  </v-card>
+    </UiTableFrame>
+    <div class="pi-section" v-if="!entries.length">没有匹配的能力。</div>
+  </UiCard>
   <p class="text-caption text-medium-emphasis mt-3">
     渠道管理仅指当前群的管理员或群主，私聊没有此身份。Bot
     管理员也遵守显式策略；“任何人”包含所有身份。上表为完整演示能力目录。
   </p>
   <div class="d-flex align-center ga-2 mt-4">
-    <v-chip v-if="changes.dirty.value" color="warning">有未保存的修改</v-chip><v-spacer /><v-btn
-      @click="notices.run(refresh)"
-      >刷新</v-btn
-    ><v-btn color="primary" variant="flat" :loading="busy" :disabled="!changes.dirty.value" @click="save"
-      >保存权限策略</v-btn
+    <UiChip v-if="changes.dirty.value" color="warning">有未保存的修改</UiChip
+    ><span class="pi-spacer" /><UiButton @click="notices.run(refresh)">刷新</UiButton
+    ><UiButton color="primary" variant="flat" :loading="busy" :disabled="!changes.dirty.value" @click="save"
+      >保存权限策略</UiButton
     >
   </div>
 </template>

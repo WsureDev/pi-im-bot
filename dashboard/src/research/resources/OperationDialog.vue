@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import { TabsTab } from '@ui-sdk/vue/tabs'
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiDialog from '@/ui/UiDialog.vue'
+import UiTabs from '@/ui/UiTabs.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { computed, onBeforeUnmount, ref, toRaw } from 'vue'
 import type { RegistryView } from '@demo/contracts/resources'
 import type { Operation } from '@demo/contracts/operations'
@@ -87,29 +94,25 @@ onBeforeUnmount(() => {
 })
 </script>
 <template>
-  <v-dialog :model-value="true" persistent scrollable max-width="980"
-    ><v-card>
-      <v-card-title class="d-flex align-center"
-        >{{ operation.title }}<v-spacer /><v-btn
+  <UiDialog :model-value="true" persistent max-width="980"
+    ><UiCard>
+      <div class="pi-card-title d-flex align-center">
+        {{ operation.title }}<span class="pi-spacer" /><UiButton
           icon="mdi-close"
           variant="text"
           aria-label="关闭操作测试"
           @click="close"
-      /></v-card-title>
-      <v-card-subtitle>{{ instance.name }} · {{ operation.id }} · {{ operation.version }}</v-card-subtitle>
-      <v-card-text>
-        <v-alert type="info" variant="tonal" class="mb-4"
-          >本地演示调用，不经过 LLM。{{ operation.description }}</v-alert
-        >
+        />
+      </div>
+      <p class="pi-subtitle">{{ instance.name }} · {{ operation.id }} · {{ operation.version }}</p>
+      <div class="pi-section">
+        <div data-tone="info" class="pi-alert mb-4">
+          本地演示调用，不经过 LLM。{{ operation.description }}
+        </div>
         <div class="d-flex align-center ga-2 mb-4">
           <h3 class="text-subtitle-1">输入参数</h3>
-          <v-spacer /><v-btn-toggle
-            :model-value="mode"
-            mandatory
-            color="primary"
-            density="compact"
-            @update:model-value="switchMode"
-            ><v-btn value="form">表单</v-btn><v-btn value="json">JSON</v-btn></v-btn-toggle
+          <span class="pi-spacer" /><UiTabs :model-value="mode" @update:model-value="switchMode"
+            ><TabsTab value="form">表单</TabsTab><TabsTab value="json">JSON</TabsTab></UiTabs
           >
         </div>
         <AstrBotConfig
@@ -119,7 +122,8 @@ onBeforeUnmount(() => {
           :iterable="parameters"
           :disabled="busy"
         />
-        <v-textarea
+        <UiText
+          multiline
           v-else
           v-model="json"
           label="操作参数 JSON"
@@ -127,39 +131,44 @@ onBeforeUnmount(() => {
           :disabled="busy"
           rows="7"
         />
-        <v-alert v-if="error" type="error" variant="tonal" class="mt-4">{{ error }}</v-alert>
-        <v-card v-if="result" class="mt-4"
-          ><v-card-title>调用结果 · {{ result.status }}</v-card-title
-          ><v-card-text>
+        <div v-if="error" data-tone="error" class="pi-alert mt-4">{{ error }}</div>
+        <UiCard v-if="result" class="mt-4"
+          ><div class="pi-card-title">调用结果 · {{ result.status }}</div>
+          <div class="pi-section">
             <pre class="operation-json">{{ JSON.stringify(result, null, 2) }}</pre>
-          </v-card-text></v-card
+          </div></UiCard
         >
         <h3 class="text-subtitle-1 mt-5 mb-2">操作契约</h3>
         <p class="text-caption text-medium-emphasis mb-2">
           输入和输出由 JSON Schema 校验。此描述可供后续 MCP Tool／指令适配器消费；本页不启动 MCP 服务。
         </p>
         <pre class="operation-json">{{ contract }}</pre>
-      </v-card-text>
-      <v-card-actions
-        ><v-chip size="small">超时 {{ operation.timeoutMs }} ms</v-chip><v-spacer /><v-btn
+      </div>
+      <footer class="pi-actions">
+        <UiChip size="small">超时 {{ operation.timeoutMs }} ms</UiChip><span class="pi-spacer" /><UiButton
           v-if="busy"
           @click="controller?.abort()"
-          >停止等待</v-btn
-        ><v-btn @click="close">关闭</v-btn
-        ><v-btn color="primary" variant="flat" :loading="busy" :disabled="!instance.available" @click="invoke"
-          >直接调用</v-btn
-        ></v-card-actions
-      >
-    </v-card></v-dialog
+          >停止等待</UiButton
+        ><UiButton @click="close">关闭</UiButton
+        ><UiButton
+          color="primary"
+          variant="flat"
+          :loading="busy"
+          :disabled="!instance.available"
+          @click="invoke"
+          >直接调用</UiButton
+        >
+      </footer>
+    </UiCard></UiDialog
   >
 </template>
 <style scoped>
 .operation-json {
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--pi-on-surface));
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-size: 12px;
-  background: rgb(var(--v-theme-background));
+  background: rgb(var(--pi-background));
   padding: 14px;
   border-radius: 8px;
   max-height: 360px;

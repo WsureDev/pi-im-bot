@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiCol from '@/ui/UiCol.vue'
+import UiDialog from '@/ui/UiDialog.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { computed, ref, toRaw } from 'vue'
 import type { z } from 'zod'
 import { IndependentRegistrySchema } from '@core/resource-providers/api-schema'
@@ -75,16 +82,16 @@ function save() {
 }
 </script>
 <template>
-  <v-dialog :model-value="true" max-width="800" scrollable
-    ><v-card title="配置直接指令"
-      ><v-card-text>
-        <v-select v-model="target" :items="choices" label="目标资源方法或 MCP Tool" />
-        <v-row
-          ><v-col cols="12" md="6"><v-text-field v-model="form.name" label="指令名称" prefix="/" /></v-col
-          ><v-col cols="12" md="6"><v-switch v-model="form.enabled" color="primary" label="启用指令" /></v-col
-        ></v-row>
-        <v-text-field v-model="form.description" label="帮助说明" />
-        <v-select
+  <UiDialog :model-value="true" max-width="800"
+    ><UiCard title="配置直接指令"
+      ><div class="pi-section">
+        <UiChoice v-model="target" :items="choices" label="目标资源方法或 MCP Tool" />
+        <div class="pi-row">
+          <UiCol cols="12" md="6"><UiText v-model="form.name" label="指令名称" prefix="/" /></UiCol
+          ><UiCol cols="12" md="6"><UiCheck v-model="form.enabled" label="启用指令" /></UiCol>
+        </div>
+        <UiText v-model="form.description" label="帮助说明" />
+        <UiChoice
           v-model="form.arguments"
           :items="[
             { title: '不接受输入', value: 'none' },
@@ -93,15 +100,14 @@ function save() {
           ]"
           label="用户参数"
         />
-        <v-text-field
+        <UiText
           v-if="form.arguments === 'text'"
           v-model="form.textPath"
           label="文字写入路径"
           hint="例如 /filters/query、/id 或 /prompt/6/inputs/text；此路径是明确开放给用户的参数"
-          persistent-hint
           class="mb-4"
         />
-        <v-select
+        <UiChoice
           v-if="form.arguments === 'text'"
           v-model="form.textType"
           :items="[
@@ -112,15 +118,15 @@ function save() {
           ]"
           label="输入值类型"
         />
-        <v-textarea
+        <UiText
+          multiline
           v-model="fixed"
           label="固定参数 / 工作流图（JSON）"
           hint="JSON 输入无法覆盖这里的固定值；整段文字模式只修改指定路径。"
-          persistent-hint
           rows="8"
           spellcheck="false"
         />
-        <v-select
+        <UiChoice
           v-model="form.output"
           :items="[
             { title: '文字 / JSON', value: 'json' },
@@ -132,11 +138,12 @@ function save() {
         <p class="text-caption">
           权限沿用当前范围的能力策略。生成任务返回受理 ID；使用状态、结果指令查询同一个任务。
         </p>
-        <v-alert v-if="error" type="error" variant="tonal" class="mt-3">{{ error }}</v-alert> </v-card-text
-      ><v-card-actions
-        ><v-spacer /><v-btn @click="emit('close')">取消</v-btn
-        ><v-btn color="primary" variant="flat" @click="save">保存指令</v-btn></v-card-actions
-      ></v-card
-    ></v-dialog
+        <div v-if="error" data-tone="error" class="pi-alert mt-3">{{ error }}</div>
+      </div>
+      <footer class="pi-actions">
+        <span class="pi-spacer" /><UiButton @click="emit('close')">取消</UiButton
+        ><UiButton color="primary" variant="flat" @click="save">保存指令</UiButton>
+      </footer></UiCard
+    ></UiDialog
   >
 </template>

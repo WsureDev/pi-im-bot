@@ -1,0 +1,274 @@
+.pi-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(var(--tone, var(--pi-secondary)), 0.25);
+  background: rgb(var(--pi-surface));
+  color: rgb(var(--tone, var(--pi-on-surface)));
+  font: 550 0.89rem/1.35 var(--ui-font-family);
+  text-decoration: none;
+  cursor: pointer;
+}
+.pi-btn:hover:not(:disabled) {
+  background: var(--pi-surface-soft);
+}
+.pi-btn[data-variant='flat'] {
+  background: rgb(var(--tone, var(--pi-primary)));
+  color: var(--ui-primary-foreground);
+  border-color: transparent;
+}
+.pi-btn[data-variant='text'] {
+  background: transparent;
+  border-color: transparent;
+}
+.pi-btn.icon-only {
+  width: 34px;
+  padding: 5px;
+}
+.pi-btn[data-size='x-small'] {
+  font-size: 12px;
+  min-height: 26px;
+}
+.pi-btn[data-size='small'] {
+  min-height: 30px;
+  font-size: 13px;
+}
+.pi-field {
+  display: grid;
+  gap: 4px;
+  margin: 5px 0;
+  min-width: 0;
+}
+.pi-field > label,
+.pi-combo label {
+  font-weight: 550;
+  font-size: 13px;
+  color: rgb(var(--pi-secondaryText));
+}
+.pi-field small,
+.pi-file small,
+.pi-check small {
+  color: rgb(var(--pi-secondaryText));
+  font-size: 12px;
+}
+.pi-input-shell,
+.pi-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  border: 1px solid rgb(var(--pi-border));
+  border-radius: 6px;
+  background: rgb(var(--pi-surface));
+  padding: 0 9px;
+  min-width: 0;
+}
+.pi-input-shell:focus-within {
+  outline: 2px solid rgba(var(--pi-primary), 0.55);
+  outline-offset: 1px;
+}
+.pi-input-shell input,
+.pi-input-shell textarea {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 7px 2px;
+  box-shadow: none;
+  outline: none;
+  resize: vertical;
+}
+.pi-input-shell textarea {
+  min-height: 60px;
+}
+.pi-password {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.pi-input-shell button,
+.pi-choice-shell > button {
+  flex: none;
+  padding: 4px 6px;
+}
+.pi-select {
+  width: 100%;
+  justify-content: space-between;
+  text-align: left;
+}
+.pi-select > span:first-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pi-choice-shell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 4px;
+}
+.pi-combo,
+.pi-choice-shell > [data-slot='select-root'] {
+  flex: 1;
+  min-width: 0;
+}
+.pi-options,
+.pi-menu-content {
+  padding: 4px;
+  border-radius: 8px;
+  background: rgb(var(--pi-surface));
+  color: rgb(var(--pi-on-surface));
+  border: var(--pi-hair);
+  box-shadow: 0 8px 28px #132b1c25;
+  max-height: min(320px, 48vh);
+  overflow: auto;
+}
+.pi-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 4px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.pi-option[data-highlighted],
+.pi-option:focus-visible,
+.pi-option:hover {
+  background: var(--pi-accent-soft);
+  color: rgb(var(--pi-primary));
+}
+.pi-option[aria-selected='true'] {
+  font-weight: 650;
+}
+.pi-check {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-height: 32px;
+}
+.pi-check label {
+  cursor: pointer;
+}
+.pi-switch,
+.pi-checkbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: none;
+  border: 1px solid rgb(var(--pi-border));
+  background: var(--pi-surface-soft);
+  cursor: pointer;
+  box-shadow: none;
+}
+.pi-switch {
+  width: 34px;
+  height: 20px;
+  border-radius: 20px;
+  padding: 2px;
+}
+.pi-switch-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgb(var(--pi-secondaryText));
+  transition: transform 0.14s ease;
+}
+.pi-switch[aria-checked='true'],
+.pi-checkbox[aria-checked='true'] {
+  background: rgb(var(--pi-primary));
+  border-color: transparent;
+}
+.pi-switch[aria-checked='true'] .pi-switch-thumb {
+  transform: translateX(13px);
+  background: var(--ui-primary-foreground);
+}
+.pi-checkbox {
+  width: 19px;
+  height: 19px;
+  border-radius: 4px;
+  justify-content: center;
+  color: var(--ui-primary-foreground);
+}
+.pi-error,
+.text-error {
+  color: rgb(var(--pi-error)) !important;
+}
+.pi-file {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 10px;
+  border: 1px dashed rgb(var(--pi-border));
+  border-radius: 7px;
+}
+.pi-file[data-dragging] {
+  background: var(--pi-accent-soft);
+}
+.pi-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  border-bottom: var(--pi-hair);
+  margin-bottom: 12px;
+}
+.pi-tabs > [role='tab'] {
+  padding: 8px 12px;
+  border-bottom: 2px solid transparent;
+  border-radius: 4px 4px 0 0;
+}
+.pi-tabs > [aria-selected='true'] {
+  color: rgb(var(--pi-primary));
+  border-color: currentColor;
+  background: var(--pi-accent-soft);
+}
+.pi-progress {
+  display: block;
+  width: 100%;
+  height: 4px;
+  accent-color: rgb(var(--pi-primary));
+}
+.pi-spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: pi-spin 0.85s linear infinite;
+}
+@keyframes pi-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pi-spinner {
+    animation: none;
+  }
+  .pi-switch-thumb {
+    transition: none;
+  }
+}
+
+.pi-select[data-slot='select-trigger']::after {
+  display: none;
+}
+.pi-choice-shell > [data-slot='select-trigger'] {
+  flex: 1;
+}
+.pi-choice-shell [data-slot='combobox-chips'] {
+  flex-wrap: wrap;
+}
+
+.pi-check {
+  position: relative;
+}

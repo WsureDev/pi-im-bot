@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import UiCard from '@/ui/UiCard.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiCol from '@/ui/UiCol.vue'
 import { computed } from 'vue'
 import type { RegistryView } from '@demo/contracts/resources'
 import { OperationReferenceSchema } from '@demo/contracts/operations'
@@ -55,21 +58,21 @@ async function save(capabilityId: string, value: string) {
 }
 </script>
 <template>
-  <v-card title="当前预设的入口操作引用" class="mt-5"
-    ><v-card-text>
+  <UiCard title="当前预设的入口操作引用" class="mt-5"
+    ><div class="pi-section">
       <p class="text-medium-emphasis mb-4">
         选择具体资源的具体操作。当前触发页验证权限与操作可用性；真实指令的参数映射、结果展示和 MCP
         接入属于后续步骤。
       </p>
-      <v-row
-        ><v-col v-for="capability in consumers" :key="capability.id" cols="12" md="6"
-          ><v-select
+      <div class="pi-row">
+        <UiCol v-for="capability in consumers" :key="capability.id" cols="12" md="6"
+          ><UiChoice
             :model-value="selected(capability.id)"
             :items="choices"
             :label="capability.title + '入口绑定'"
             :aria-label="capability.title + '入口绑定'"
-            hide-details
-            @update:model-value="notices.run(() => save(capability.id, $event))" /></v-col
-      ></v-row> </v-card-text
-  ></v-card>
+            @update:model-value="notices.run(() => save(capability.id, $event))"
+        /></UiCol>
+      </div></div
+  ></UiCard>
 </template>

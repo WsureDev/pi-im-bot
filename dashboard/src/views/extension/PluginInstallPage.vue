@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiCol from '@/ui/UiCol.vue'
+import UiDataTable from '@/ui/table/UiDataTable.vue'
+import UiFile from '@/ui/fields/UiFile.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { z } from 'zod'
 import { PluginEditorViewSchema } from '@core/plugins/contracts'
@@ -117,11 +124,11 @@ onBeforeUnmount(() => {
 })
 </script>
 <template>
-  <v-row class="mb-5">
-    <v-col cols="12" md="7"
-      ><v-card title="安装插件"
-        ><v-card-text>
-          <v-select
+  <div class="pi-row mb-5">
+    <UiCol cols="12" md="7"
+      ><UiCard title="安装插件"
+        ><div class="pi-section">
+          <UiChoice
             v-model="mode"
             label="来源"
             aria-label="来源"
@@ -131,40 +138,40 @@ onBeforeUnmount(() => {
               { title: '上传 ZIP', value: 'upload' }
             ]"
           />
-          <v-file-input v-if="mode === 'upload'" v-model="file" label="插件包" accept=".zip" multiple />
-          <v-text-field v-else v-model="location" label="来源地址或标识" />
-          <v-text-field v-model="targetId" label="更新已有实例 ID（可选）" />
-          <v-btn
+          <UiFile v-if="mode === 'upload'" v-model="file" label="插件包" accept=".zip" multiple />
+          <UiText v-else v-model="location" label="来源地址或标识" />
+          <UiText v-model="targetId" label="更新已有实例 ID（可选）" />
+          <UiButton
             color="primary"
             variant="flat"
             prepend-icon="mdi-plus"
             :loading="busy"
             @click="notifications.run(() => install())"
-            >安装插件</v-btn
+            >安装插件</UiButton
           >
-        </v-card-text></v-card
-      ></v-col
+        </div></UiCard
+      ></UiCol
     >
-    <v-col cols="12" md="5"
-      ><v-card title="目录源"
-        ><v-card-text
-          ><v-textarea v-model="sources" label="目录源 JSON" rows="6" /><v-btn
+    <UiCol cols="12" md="5"
+      ><UiCard title="目录源"
+        ><div class="pi-section">
+          <UiText multiline v-model="sources" label="目录源 JSON" rows="6" /><UiButton
             color="primary"
             variant="tonal"
             @click="notifications.run(saveSources)"
-            >保存目录源</v-btn
-          ></v-card-text
-        ></v-card
-      ></v-col
+            >保存目录源</UiButton
+          >
+        </div></UiCard
+      ></UiCol
     >
-  </v-row>
-  <v-toolbar color="transparent"
-    ><v-toolbar-title>发现插件</v-toolbar-title
-    ><v-btn @click="notifications.run(refreshMarket)">刷新目录</v-btn></v-toolbar
-  >
-  <v-alert v-for="error in market?.errors" :key="error" type="warning" variant="tonal">{{ error }}</v-alert
-  ><v-text-field v-model="search" label="搜索目录" />
-  <v-data-table
+  </div>
+  <header class="pi-toolbar">
+    <div class="pi-toolbar-title">发现插件</div>
+    <UiButton @click="notifications.run(refreshMarket)">刷新目录</UiButton>
+  </header>
+  <div class="pi-alert" v-for="error in market?.errors" :key="error" data-tone="warning">{{ error }}</div>
+  <UiText v-model="search" label="搜索目录" />
+  <UiDataTable
     :items="market?.entries ?? []"
     :headers="[
       { title: '名称', key: 'name' },
@@ -176,15 +183,15 @@ onBeforeUnmount(() => {
     :search="search"
     :items-per-page="25"
     ><template #item.actions="{ item }"
-      ><v-btn :loading="busy" @click="notifications.run(() => install(item.key))"
-        >安装 / 更新</v-btn
+      ><UiButton :loading="busy" @click="notifications.run(() => install(item.key))"
+        >安装 / 更新</UiButton
       ></template
-    ></v-data-table
+    ></UiDataTable
   >
-  <v-divider class="my-5" />
+  <hr class="pi-divider my-5" />
   <h2 class="text-h6">安装记录</h2>
-  <v-btn variant="text" @click="notifications.run(poll)">核对原任务</v-btn>
-  <v-data-table
+  <UiButton variant="text" @click="notifications.run(poll)">核对原任务</UiButton>
+  <UiDataTable
     :items="installations"
     :headers="[
       { title: '任务', key: 'name' },
@@ -195,11 +202,11 @@ onBeforeUnmount(() => {
     ]"
     :items-per-page="10"
     ><template #item.actions="{ item }"
-      ><v-btn
+      ><UiButton
         v-if="['queued', 'downloading', 'verifying', 'applying'].includes(item.stage)"
         @click="notifications.run(() => cancel(item))"
-        >取消</v-btn
+        >取消</UiButton
       ></template
-    ></v-data-table
+    ></UiDataTable
   >
 </template>

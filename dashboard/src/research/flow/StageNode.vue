@@ -45,26 +45,26 @@ const active = computed(() => {
 .stage-node {
   width: 222px;
   height: 154px;
-  background: rgb(var(--v-theme-surface));
-  color: rgb(var(--v-theme-on-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
-  border-top: 4px solid rgb(var(--v-theme-primary));
+  background: rgb(var(--pi-surface));
+  color: rgb(var(--pi-on-surface));
+  border: 1px solid rgba(var(--pi-on-surface), 0.18);
+  border-top: 4px solid rgb(var(--pi-primary));
   border-radius: 12px;
   padding: 12px;
   box-shadow: 0 4px 14px #0000000a;
 }
 .stage-node.chosen {
-  outline: 3px solid rgb(var(--v-theme-primary));
+  outline: 3px solid rgb(var(--pi-primary));
   outline-offset: 3px;
 }
 .stage-node.authorization {
-  border-top-color: rgb(var(--v-theme-warning));
+  border-top-color: rgb(var(--pi-warning));
 }
 .stage-node.execution {
-  border-top-color: rgb(var(--v-theme-success));
+  border-top-color: rgb(var(--pi-success));
 }
 .stage-node.terminal {
-  border-top-color: rgb(var(--v-theme-error));
+  border-top-color: rgb(var(--pi-error));
 }
 .compact strong {
   display: block;
@@ -78,7 +78,7 @@ const active = computed(() => {
 .compact-count {
   font-size: 17px;
   margin-top: 6px;
-  color: rgb(var(--v-theme-primary));
+  color: rgb(var(--pi-primary));
 }
 .stage-kicker {
   display: flex;

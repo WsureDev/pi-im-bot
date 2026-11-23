@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiDialog from '@/ui/UiDialog.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { computed, ref, toRaw } from 'vue'
 import type { ResourceMethod } from '@core/resource-providers/protocol'
 import { ResourceOutputSchema } from '@core/resource-providers/protocol'
@@ -60,22 +65,20 @@ async function invoke() {
 }
 </script>
 <template>
-  <v-dialog :model-value="true" max-width="900" scrollable
-    ><v-card :title="selection.method.title"
-      ><v-card-text>
+  <UiDialog :model-value="true" max-width="900"
+    ><UiCard :title="selection.method.title"
+      ><div class="pi-section">
         <p class="mb-4">{{ selection.method.description }}</p>
-        <v-alert v-if="selection.method.effect === 'write'" type="warning" variant="tonal" class="mb-4"
-          >此方法会提交或修改后端任务。调用失败不会自动重试。</v-alert
-        >
-        <v-switch
+        <div v-if="selection.method.effect === 'write'" data-tone="warning" class="pi-alert mb-4">
+          此方法会提交或修改后端任务。调用失败不会自动重试。
+        </div>
+        <UiCheck
           v-if="Object.keys(selection.method.inputUiSchema).length"
           :model-value="useJson"
           label="JSON 参数编辑"
-          color="primary"
-          hide-details
           @update:model-value="switchEditor"
         />
-        <v-textarea v-if="useJson" v-model="json" label="参数 JSON" rows="9" spellcheck="false" />
+        <UiText multiline v-if="useJson" v-model="json" label="参数 JSON" rows="9" spellcheck="false" />
         <AstrBotConfig
           v-else
           :metadata="metadata"
@@ -83,14 +86,13 @@ async function invoke() {
           :iterable="values"
           :disabled="busy"
         />
-        <v-alert v-if="error" type="error" variant="tonal" class="mb-3">{{ error }}</v-alert>
-        <v-textarea v-if="result" :model-value="result" label="调用结果" readonly rows="12" /> </v-card-text
-      ><v-card-actions
-        ><v-spacer /><v-btn :disabled="busy" @click="$emit('close')">关闭</v-btn
-        ><v-btn color="primary" variant="flat" :loading="busy" @click="invoke"
-          >调用方法</v-btn
-        ></v-card-actions
-      ></v-card
-    ></v-dialog
+        <div v-if="error" data-tone="error" class="pi-alert mb-3">{{ error }}</div>
+        <UiText multiline v-if="result" :model-value="result" label="调用结果" readonly rows="12" />
+      </div>
+      <footer class="pi-actions">
+        <span class="pi-spacer" /><UiButton :disabled="busy" @click="$emit('close')">关闭</UiButton
+        ><UiButton color="primary" variant="flat" :loading="busy" @click="invoke">调用方法</UiButton>
+      </footer></UiCard
+    ></UiDialog
   >
 </template>

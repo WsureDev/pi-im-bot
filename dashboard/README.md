@@ -1,8 +1,8 @@
 # Pi Dashboard
 
-Pi IM Bot 的完整工作台，覆盖聊天、Bot 设置与人格、插件、资源、后台任务、Provider、计划和 QQ 接入。采用 Vue 3、Vuetify、Pinia、Vue Router、Axios、vue-i18n 和 Vite；Bun 管理依赖与脚本。八个区域通过 Hash 路由独立加载。
+Pi IM Bot 的工作台有 12 个按需加载的导航入口，覆盖聊天、编排与权限、配置与资源、后台任务、计划以及 QQ 接入。使用 Vue 3、UI SDK、Pinia、Vue Router、Axios 和 Vite，由 Bun 管理依赖。
 
-上游固定为 AstrBot v4.28.0，commit `a412146401426c0cdff8bbefb8627a03da519da8`。原路径及文件 SHA-256 记录在 [UPSTREAM.json](UPSTREAM.json)，修改范围和许可见 [NOTICE.md](NOTICE.md)。基础控件直接使用 Vuetify；配置表单和聊天展示来自上游组件。
+上游固定为 AstrBot v4.28.0，commit `a412146401426c0cdff8bbefb8627a03da519da8`。原路径及文件 SHA-256 记录在 [UPSTREAM.json](UPSTREAM.json)，修改范围和许可见 [NOTICE.md](NOTICE.md)。配置表单和聊天界面沿用上游业务逻辑。交互控件使用锁定版本的 UI SDK Vue 适配器，布局和管理表格位于本项目的 src/ui。选型依据及功能边界见 [Sink 复审](../docs/framework/dashboard-ui-sdk.md)。
 
 ## 构建与开发
 
@@ -27,9 +27,9 @@ Dashboard 使用独立 TypeScript 5.1.6 与 vue-tsc 1.8.8，Core 保持自己的
 
 - `api/http.ts` 使用 Axios 和 Core 的 Zod 契约；失败的写请求不自动重放。安装进度核对原安装记录，执行状态和交付状态分别显示。
 - Pinia 更新房间、消息、任务、执行和连接状态。快照加载期间的事件在返回后合并；后台房间事件不会切换用户当前渠道。
-- 配置草稿与服务端快照分开保存。路由、范围切换和编辑弹窗退出使用上游确认对话框；409 保留当前草稿。聊天草稿按渠道保留在内存中。
+- 配置草稿与服务端快照分开保存。路由、范围切换和编辑弹窗退出使用工作台确认对话框；409 保留当前草稿。聊天草稿按渠道保留在内存中。
 - 插件配置读取 `/api/plugins/:id/configuration`，按完整 definition 渲染，保留嵌套、条件、秘密字段、默认值和元数据。秘密保留/替换/清除通过独立 actions 提交，模板条目使用稳定 UUID。
-- 密钥使用 AstrBot 的密码框与眼睛显隐，不再显示动作选择行或清除复选框。打开编辑表单时通过带版本检查、no-store 的私密读取取得该对象的已保存值；默认掩码。直接编辑即可替换，清空后保存即可清除；未修改时保留原值。常规状态和列表仍隐藏秘密值。
+- 凭据使用 UI SDK 密码框，可用鼠标或键盘切换显示。打开编辑表单时通过带版本检查、no-store 的私密读取取得该对象的已保存值；默认掩码。直接编辑即可替换，清空后保存即可清除；未修改时保留原值。常规状态和列表仍隐藏秘密值。
 - 范围覆盖提交稀疏值，恢复继承移除覆盖；恢复 schema 默认值是显式赋值。Bot 的资源选择保持完整 `mode/ids` 对象语义，支持 selected 加空数组。
 - 音色选项读取 Core 缓存，搜索保留全部选项及当前选择；无缓存提供文本输入。页面打开不会直接请求 GSVI。
 

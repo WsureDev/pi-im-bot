@@ -1,4 +1,6 @@
 <script setup>
+import UiButton from '@/ui/UiButton.vue'
+import UiIcon from '@/ui/UiIcon.vue'
 import { computed } from 'vue'
 import { useI18n } from '@/i18n/composables'
 import { getPluginConfigDefaultValue, isPluginConfigValueModified } from '@/utils/pluginConfigDefaults.mjs'
@@ -37,7 +39,7 @@ function resetToDefault() {
     <div class="config-default-reset__field">
       <slot></slot>
     </div>
-    <v-btn
+    <UiButton
       v-if="showReset"
       icon
       size="x-small"
@@ -48,8 +50,8 @@ function resetToDefault() {
       :aria-label="t('core.common.restoreDefault')"
       @click="resetToDefault"
     >
-      <v-icon size="18">mdi-restore</v-icon>
-    </v-btn>
+      <UiIcon icon="mdi-restore" size="18"></UiIcon>
+    </UiButton>
   </div>
 </template>
 

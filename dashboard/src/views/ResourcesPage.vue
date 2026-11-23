@@ -1,4 +1,16 @@
 <script setup lang="ts">
+import { TabsTab } from '@ui-sdk/vue/tabs'
+import UiAccordion from '@/ui/UiAccordion.vue'
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiCol from '@/ui/UiCol.vue'
+import UiDataTable from '@/ui/table/UiDataTable.vue'
+import UiDialog from '@/ui/UiDialog.vue'
+import UiDisclosure from '@/ui/UiDisclosure.vue'
+import UiListItem from '@/ui/UiListItem.vue'
+import UiTabs from '@/ui/UiTabs.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { usePasswordVisibility } from '@/composables/password-visibility'
 import { SecretValueSchema } from '@core/plugins/configuration/secret-editor'
 
@@ -297,27 +309,28 @@ onMounted(() => {
 })
 </script>
 <template>
-  <v-toolbar color="transparent"
-    ><v-toolbar-title>MCP、Skill 与资源</v-toolbar-title
-    ><v-btn @click="notifications.run(load)">刷新</v-btn></v-toolbar
+  <header class="pi-toolbar">
+    <div class="pi-toolbar-title">MCP、Skill 与资源</div>
+    <UiButton @click="notifications.run(load)">刷新</UiButton>
+  </header>
+  <UiTabs :model-value="tab" @update:model-value="notifications.run(() => selectTab(String($event)))"
+    ><TabsTab value="mcp">MCP</TabsTab><TabsTab value="skills">Skill</TabsTab
+    ><TabsTab v-if="showConnections" value="services">GSVI 服务</TabsTab
+    ><TabsTab v-if="showConnections" value="comfy">ComfyUI 服务</TabsTab
+    ><TabsTab v-if="showConnections" value="workflows">工作流</TabsTab><TabsTab value="storage">存储</TabsTab
+    ><TabsTab value="observers">观察任务</TabsTab></UiTabs
   >
-  <v-tabs :model-value="tab" @update:model-value="notifications.run(() => selectTab(String($event)))"
-    ><v-tab value="mcp">MCP</v-tab><v-tab value="skills">Skill</v-tab
-    ><v-tab v-if="showConnections" value="services">GSVI 服务</v-tab
-    ><v-tab v-if="showConnections" value="comfy">ComfyUI 服务</v-tab
-    ><v-tab v-if="showConnections" value="workflows">工作流</v-tab><v-tab value="storage">存储</v-tab
-    ><v-tab value="observers">观察任务</v-tab></v-tabs
-  >
-  <v-card v-if="!['storage', 'observers'].includes(tab)" class="mt-4"
-    ><v-card-text :inert="busy"
-      ><v-row
-        ><v-col><v-text-field v-model="search" label="搜索资源" /></v-col
-        ><v-col cols="auto"
-          ><v-btn variant="flat" color="primary" @click="notifications.run(() => open(tab))"
-            >新增 / 导入</v-btn
-          ></v-col
-        ></v-row
-      ><v-data-table
+  <UiCard v-if="!['storage', 'observers'].includes(tab)" class="mt-4"
+    ><div class="pi-section" :inert="busy">
+      <div class="pi-row">
+        <UiCol><UiText v-model="search" label="搜索资源" /></UiCol
+        ><UiCol cols="auto"
+          ><UiButton variant="flat" color="primary" @click="notifications.run(() => open(tab))"
+            >新增 / 导入</UiButton
+          ></UiCol
+        >
+      </div>
+      <UiDataTable
         :items="rows"
         :search="search"
         :items-per-page="25"
@@ -329,36 +342,36 @@ onMounted(() => {
           { title: '操作', key: 'actions' }
         ]"
         ><template #item.actions="{ item }"
-          ><v-btn variant="text" @click="notifications.run(() => open(tab, item.id))">配置</v-btn
-          ><v-btn
+          ><UiButton variant="text" @click="notifications.run(() => open(tab, item.id))">配置</UiButton
+          ><UiButton
             v-if="tab === 'mcp'"
             variant="text"
             @click="notifications.run(() => action(item.id, 'refresh'))"
-            >刷新工具</v-btn
-          ><v-btn v-if="tab === 'mcp'" variant="text" @click="showTools(item.id)">工具列表</v-btn
-          ><v-btn
+            >刷新工具</UiButton
+          ><UiButton v-if="tab === 'mcp'" variant="text" @click="showTools(item.id)">工具列表</UiButton
+          ><UiButton
             v-if="tab === 'skills'"
             variant="text"
             @click="notifications.run(() => action(item.id, 'import'))"
-            >导入</v-btn
-          ><v-btn variant="text" color="error" @click="notifications.run(() => action(item.id, 'delete'))"
-            >删除</v-btn
+            >导入</UiButton
+          ><UiButton variant="text" color="error" @click="notifications.run(() => action(item.id, 'delete'))"
+            >删除</UiButton
           ></template
-        ></v-data-table
-      ></v-card-text
-    ></v-card
+        ></UiDataTable
+      >
+    </div></UiCard
   >
-  <v-card v-else-if="tab === 'storage'" class="mt-4" title="插件数据与产物额度"
-    ><v-card-text :inert="busy"
-      ><v-btn @click="notifications.run(() => selectTab('storage'))">刷新存储状态</v-btn
-      ><v-btn @click="notifications.run(reconcile)">核对已移除的产物文件</v-btn>
+  <UiCard v-else-if="tab === 'storage'" class="mt-4" title="插件数据与产物额度"
+    ><div class="pi-section" :inert="busy">
+      <UiButton @click="notifications.run(() => selectTab('storage'))">刷新存储状态</UiButton
+      ><UiButton @click="notifications.run(reconcile)">核对已移除的产物文件</UiButton>
       <template v-if="storage">
-        <v-list>
-          <v-list-item
+        <div class="pi-list">
+          <UiListItem
             title="插件数据预留"
             :subtitle="formatBytes(storage.data.reservedBytes) + ' / ' + formatBytes(storage.data.totalBytes)"
           />
-          <v-list-item
+          <UiListItem
             title="卷与插件额度"
             :subtitle="
               '每卷 ' +
@@ -370,7 +383,7 @@ onMounted(() => {
               ' 卷'
             "
           />
-          <v-list-item
+          <UiListItem
             title="产物"
             :subtitle="
               formatBytes(storage.artifacts.bytes) +
@@ -382,12 +395,12 @@ onMounted(() => {
               storage.artifacts.pending
             "
           />
-          <v-list-item title="单文件上限" :subtitle="formatBytes(storage.artifacts.limits.maxFileBytes)" />
-        </v-list>
-        <v-alert v-if="!storage.data.dependenciesReady" type="warning" variant="tonal" class="mb-4"
-          >持久数据文件系统依赖尚未就绪，请在插件运行环境中检查。</v-alert
-        >
-        <v-data-table
+          <UiListItem title="单文件上限" :subtitle="formatBytes(storage.artifacts.limits.maxFileBytes)" />
+        </div>
+        <div v-if="!storage.data.dependenciesReady" data-tone="warning" class="pi-alert mb-4">
+          持久数据文件系统依赖尚未就绪，请在插件运行环境中检查。
+        </div>
+        <UiDataTable
           :items="storage.data.volumes"
           :headers="[
             { title: '插件', key: 'instanceId' },
@@ -401,15 +414,15 @@ onMounted(() => {
         >
           <template #item.bytes="{ item }">{{ formatBytes(item.bytes) }}</template>
           <template #item.usedBytes="{ item }">{{ formatBytes(item.usedBytes) }}</template>
-        </v-data-table>
+        </UiDataTable>
       </template>
-    </v-card-text></v-card
+    </div></UiCard
   >
-  <v-card v-else class="mt-4" title="观察任务与后续动作"
-    ><v-card-text :inert="busy"
-      ><v-btn @click="notifications.run(() => selectTab('observers'))">刷新观察状态</v-btn
-      ><v-alert v-if="observers?.lastError" type="error">{{ observers.lastError }}</v-alert
-      ><v-data-table
+  <UiCard v-else class="mt-4" title="观察任务与后续动作"
+    ><div class="pi-section" :inert="busy">
+      <UiButton @click="notifications.run(() => selectTab('observers'))">刷新观察状态</UiButton>
+      <div class="pi-alert" v-if="observers?.lastError" data-tone="error">{{ observers.lastError }}</div>
+      <UiDataTable
         :items="observers?.active ?? []"
         :headers="[
           { title: '处理器', key: 'handler' },
@@ -418,12 +431,14 @@ onMounted(() => {
           { title: '操作', key: 'actions' }
         ]"
         ><template #item.actions="{ item }"
-          ><v-btn @click="notifications.run(() => cancelObserver(item.taskId))">停止此动作</v-btn></template
-        ></v-data-table
-      ><v-expansion-panels
-        ><v-expansion-panel title="近期观察记录"
-          ><v-expansion-panel-text>
-            <v-data-table
+          ><UiButton @click="notifications.run(() => cancelObserver(item.taskId))"
+            >停止此动作</UiButton
+          ></template
+        ></UiDataTable
+      ><UiAccordion
+        ><UiDisclosure title="近期观察记录"
+          ><div class="pi-disclosure-body">
+            <UiDataTable
               :items="observers?.recent ?? []"
               :headers="[
                 { title: '处理器', key: 'handler' },
@@ -432,36 +447,36 @@ onMounted(() => {
                 { title: '错误', key: 'error' }
               ]"
               :items-per-page="25"
-            /> </v-expansion-panel-text></v-expansion-panel></v-expansion-panels></v-card-text
-  ></v-card>
-  <v-dialog v-model="dialog" persistent scrollable max-width="900"
-    ><v-card title="资源配置"
-      ><v-card-text :inert="busy">
+            /></div></UiDisclosure
+      ></UiAccordion></div
+  ></UiCard>
+  <UiDialog v-model="dialog" persistent max-width="900"
+    ><UiCard title="资源配置"
+      ><div class="pi-section" :inert="busy">
         <template v-if="kind === 'mcp'"
-          ><v-text-field v-model="mcp.id" label="ID" :disabled="Boolean(originalId)" /><v-text-field
+          ><UiText v-model="mcp.id" label="ID" :disabled="Boolean(originalId)" /><UiText
             v-model="mcp.name"
-            label="名称" /><v-text-field v-model="mcp.url" label="HTTP 地址（编辑时留空保留）" /><v-switch
+            label="名称" /><UiText v-model="mcp.url" label="HTTP 地址（编辑时留空保留）" /><UiCheck
             v-model="mcp.enabled"
-            label="启用" /><v-text-field
-            v-model.number="mcp.timeoutMs"
-            label="超时（毫秒）"
-            type="number" /><v-textarea v-model="extraHeaders" label="Header JSON" /><v-textarea
-            v-model="headerEnv"
-            label="Header 环境变量 JSON" /><v-textarea v-model="tasks" label="MCP Tasks 策略 JSON"
+            label="启用" /><UiText v-model.number="mcp.timeoutMs" label="超时（毫秒）" type="number" /><UiText
+            multiline
+            v-model="extraHeaders"
+            label="Header JSON" /><UiText multiline v-model="headerEnv" label="Header 环境变量 JSON" /><UiText
+            multiline
+            v-model="tasks"
+            label="MCP Tasks 策略 JSON"
         /></template>
         <template v-else-if="kind === 'skills'"
-          ><v-text-field v-model="skill.id" label="ID" :disabled="Boolean(originalId)" /><v-text-field
+          ><UiText v-model="skill.id" label="ID" :disabled="Boolean(originalId)" /><UiText
             v-model="skill.name"
-            label="名称" /><v-text-field v-model="skill.sourceDir" label="来源目录" /><v-switch
+            label="名称" /><UiText v-model="skill.sourceDir" label="来源目录" /><UiCheck
             v-model="skill.enabled"
             label="启用"
         /></template>
         <template v-else-if="kind === 'services'"
-          ><v-text-field v-model="service.id" label="ID" :disabled="Boolean(originalId)" /><v-text-field
+          ><UiText v-model="service.id" label="ID" :disabled="Boolean(originalId)" /><UiText
             v-model="service.name"
-            label="名称" /><v-text-field
-            v-model="service.url"
-            label="GSVI 地址（编辑时留空保留）" /><v-text-field
+            label="名称" /><UiText v-model="service.url" label="GSVI 地址（编辑时留空保留）" /><UiText
             :model-value="service.apiKey"
             @update:model-value="service.apiKey = $event ?? ''"
             :type="keyVisibility.type.value"
@@ -470,18 +485,22 @@ onMounted(() => {
             clearable
             autocomplete="new-password"
             label="API Key"
-            aria-label="API Key" /><v-switch v-model="service.enabled" label="启用具名服务" /><v-text-field
+            aria-label="API Key" /><UiCheck v-model="service.enabled" label="启用具名服务" /><UiText
             v-model.number="service.timeoutMs"
             type="number"
-            label="超时（毫秒）" /><v-textarea v-model="extraHeaders" label="请求 Header JSON" /><v-textarea
+            label="超时（毫秒）" /><UiText multiline v-model="extraHeaders" label="请求 Header JSON" /><UiText
+            multiline
             v-model="downloadHeaders"
-            label="下载 Header JSON" /><v-textarea
+            label="下载 Header JSON" /><UiText
+            multiline
             v-model="downloadOrigins"
-            label="下载来源 JSON" /><v-textarea
+            label="下载来源 JSON" /><UiText
+            multiline
             v-model="nativeHeaders"
-            label="原生请求 Header JSON（null 使用默认）" /><v-textarea
+            label="原生请求 Header JSON（null 使用默认）" /><UiText
+            multiline
             v-model="nativeDownloadHeaders"
-            label="原生下载 Header JSON（null 使用默认）" /><v-switch
+            label="原生下载 Header JSON（null 使用默认）" /><UiCheck
             v-model="service.sourceCompatibleDownloads"
             label="采用源插件下载语义"
         /></template>
@@ -491,9 +510,10 @@ onMounted(() => {
           language="json"
           :options="{ automaticLayout: true, minimap: { enabled: false } }"
           style="height: 65vh"
-        /> </v-card-text
-      ><v-card-actions
-        ><v-spacer /><v-btn
+        />
+      </div>
+      <footer class="pi-actions">
+        <span class="pi-spacer" /><UiButton
           @click="
             changes.discard().then((leave) => {
               if (leave) {
@@ -502,17 +522,17 @@ onMounted(() => {
               }
             })
           "
-          >取消</v-btn
-        ><v-btn variant="flat" color="primary" :loading="busy" @click="notifications.run(save)"
-          >保存</v-btn
-        ></v-card-actions
-      ></v-card
-    ></v-dialog
+          >取消</UiButton
+        ><UiButton variant="flat" color="primary" :loading="busy" @click="notifications.run(save)"
+          >保存</UiButton
+        >
+      </footer></UiCard
+    ></UiDialog
   >
-  <v-dialog v-model="toolsDialog" max-width="1000"
-    ><v-card title="MCP 工具与能力"
-      ><v-card-text :inert="busy"
-        ><v-data-table
+  <UiDialog v-model="toolsDialog" max-width="1000"
+    ><UiCard title="MCP 工具与能力"
+      ><div class="pi-section" :inert="busy">
+        <UiDataTable
           :items="toolRows"
           :headers="[
             { title: '名称', key: 'name' },
@@ -521,8 +541,10 @@ onMounted(() => {
             { title: '说明', key: 'description' },
             { title: '可用', key: 'available' }
           ]"
-          :items-per-page="25" /></v-card-text
-      ><v-card-actions><v-btn @click="toolsDialog = false">关闭</v-btn></v-card-actions></v-card
-    ></v-dialog
+          :items-per-page="25"
+        />
+      </div>
+      <footer class="pi-actions"><UiButton @click="toolsDialog = false">关闭</UiButton></footer></UiCard
+    ></UiDialog
   >
 </template>

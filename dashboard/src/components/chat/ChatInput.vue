@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiIcon from '@/ui/UiIcon.vue'
 import { computed, ref } from 'vue'
 import type { Attachment } from '@core/domain/message'
 const props = withDefaults(
@@ -69,9 +71,9 @@ function handlePaste(event: ClipboardEvent) {
     >
       <div v-if="replyLabel" class="reply-preview">
         <div class="reply-content">
-          <v-icon size="small">mdi-reply</v-icon><span class="reply-text">{{ replyLabel }}</span>
+          <UiIcon icon="mdi-reply" size="small"></UiIcon><span class="reply-text">{{ replyLabel }}</span>
         </div>
-        <v-btn
+        <UiButton
           @click="emit('clearReply')"
           icon="mdi-close"
           size="x-small"
@@ -81,8 +83,8 @@ function handlePaste(event: ClipboardEvent) {
       </div>
       <div v-if="attachments.length" class="attachments-preview">
         <div v-for="(file, index) in attachments" :key="file.mediaId" class="attachment-card file-preview">
-          <v-icon icon="mdi-paperclip" /><span class="attachment-name">{{ file.name }}</span
-          ><v-btn
+          <UiIcon icon="mdi-paperclip" /><span class="attachment-name">{{ file.name }}</span
+          ><UiButton
             icon="mdi-close"
             size="x-small"
             variant="tonal"
@@ -93,7 +95,7 @@ function handlePaste(event: ClipboardEvent) {
       </div>
       <div class="composer-row">
         <div class="input-left-actions">
-          <v-btn
+          <UiButton
             @click="imageInputRef?.click()"
             icon="mdi-paperclip"
             variant="text"
@@ -122,13 +124,13 @@ function handlePaste(event: ClipboardEvent) {
             multiple
             style="display: none"
             @change="handleFileSelect"
-          /><v-btn
+          /><UiButton
             v-if="isRunning"
             icon="mdi-stop"
             variant="tonal"
             aria-label="停止生成"
             @click="emit('stop')"
-          /><v-btn
+          /><UiButton
             @click="emit('send')"
             icon="mdi-arrow-up"
             variant="tonal"
@@ -146,7 +148,7 @@ function handlePaste(event: ClipboardEvent) {
   padding: 0 16px;
   background-color: transparent;
   position: relative;
-  border-top: 1px solid var(--v-theme-border);
+  border-top: 1px solid var(--pi-border);
   flex-shrink: 0;
 }
 
@@ -183,12 +185,12 @@ function handlePaste(event: ClipboardEvent) {
 
 .input-icon-btn {
   background: transparent !important;
-  color: rgb(var(--v-theme-on-surface)) !important;
+  color: rgb(var(--pi-on-surface)) !important;
   margin-right: 8px;
 }
 
 .input-icon-btn:hover {
-  background: rgba(var(--v-theme-on-surface), 0.04) !important;
+  background: rgba(var(--pi-on-surface), 0.04) !important;
 }
 
 .token-usage-indicator {
@@ -206,16 +208,6 @@ function handlePaste(event: ClipboardEvent) {
   color: currentColor;
 }
 
-.token-usage-progress :deep(.v-progress-circular__underlay) {
-  color: rgba(var(--v-theme-on-surface), 0.18);
-  stroke: currentColor;
-  opacity: 0.24;
-}
-
-.token-usage-progress :deep(.v-progress-circular__overlay) {
-  stroke: currentColor;
-}
-
 .input-outline-control {
   width: 36px !important;
   height: 36px !important;
@@ -229,7 +221,7 @@ function handlePaste(event: ClipboardEvent) {
 .input-outline-control:hover,
 .input-outline-control:focus-visible {
   border-color: transparent !important;
-  background: rgba(var(--v-theme-on-surface), 0.04) !important;
+  background: rgba(var(--pi-on-surface), 0.04) !important;
 }
 
 .input-area.is-dark .input-neutral-btn {
@@ -253,17 +245,17 @@ function handlePaste(event: ClipboardEvent) {
 }
 
 .input-area.is-dark .input-action-btn {
-  background: rgb(var(--v-theme-on-surface)) !important;
-  color: rgb(var(--v-theme-surface)) !important;
+  background: rgb(var(--pi-on-surface)) !important;
+  color: rgb(var(--pi-surface)) !important;
 }
 
 .input-area.is-dark .input-action-btn:hover {
-  background: rgba(var(--v-theme-on-surface), 0.86) !important;
+  background: rgba(var(--pi-on-surface), 0.86) !important;
 }
 
 .input-area.is-dark .input-action-btn:disabled {
-  background: rgba(var(--v-theme-on-surface), 0.14) !important;
-  color: rgba(var(--v-theme-on-surface), 0.4) !important;
+  background: rgba(var(--pi-on-surface), 0.14) !important;
+  color: rgba(var(--pi-on-surface), 0.4) !important;
 }
 
 .input-container {
@@ -372,7 +364,7 @@ function handlePaste(event: ClipboardEvent) {
 
 .chat-text-input::placeholder,
 .chat-textarea::placeholder {
-  color: rgba(var(--v-theme-on-surface), 0.56);
+  color: rgba(var(--pi-on-surface), 0.56);
   opacity: 1;
 }
 
@@ -444,7 +436,7 @@ function handlePaste(event: ClipboardEvent) {
   justify-content: space-between;
   padding: 8px 16px;
   margin: 8px 8px 0 8px;
-  background-color: rgba(var(--v-theme-primary), 0.06);
+  background-color: rgba(var(--pi-primary), 0.06);
   border-radius: 12px;
   gap: 8px;
   max-height: 500px;
@@ -506,13 +498,13 @@ function handlePaste(event: ClipboardEvent) {
 }
 
 .reply-icon {
-  color: var(--v-theme-secondary);
+  color: rgb(var(--pi-secondary));
   flex-shrink: 0;
 }
 
 .reply-text {
   font-size: 13px;
-  color: var(--v-theme-secondaryText);
+  color: rgb(var(--pi-secondaryText));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -556,18 +548,18 @@ function handlePaste(event: ClipboardEvent) {
   min-width: 0;
   padding: 7px 32px 7px 10px;
   overflow: hidden;
-  color: rgb(var(--v-theme-on-surface));
-  background: rgba(var(--v-theme-on-surface), 0.055);
+  color: rgb(var(--pi-on-surface));
+  background: rgba(var(--pi-on-surface), 0.055);
   border: 0;
   border-radius: 8px;
 }
 
 .file-preview {
-  background: rgba(var(--v-theme-on-surface), 0.055);
+  background: rgba(var(--pi-on-surface), 0.055);
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--attachment-color) 14%, transparent),
-    rgba(var(--v-theme-on-surface), 0.055) 62%
+    rgba(var(--pi-on-surface), 0.055) 62%
   );
 }
 
@@ -575,7 +567,7 @@ function handlePaste(event: ClipboardEvent) {
   width: 54px;
   flex-basis: 54px;
   padding: 0;
-  background: rgba(var(--v-theme-on-surface), 0.06);
+  background: rgba(var(--pi-on-surface), 0.06);
 }
 
 .preview-image {
@@ -688,7 +680,7 @@ function handlePaste(event: ClipboardEvent) {
     margin: 0 10px calc(8px + env(safe-area-inset-bottom)) !important;
     padding: 6px 8px 6px 10px !important;
     overflow: hidden;
-    border: 1px solid rgba(var(--v-theme-on-surface), 0.14) !important;
+    border: 1px solid rgba(var(--pi-on-surface), 0.14) !important;
     border-radius: 999px !important;
     background: #fff !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
@@ -789,7 +781,7 @@ function handlePaste(event: ClipboardEvent) {
 
   .chat-text-input::placeholder,
   .chat-textarea::placeholder {
-    color: rgba(var(--v-theme-on-surface), 0.56);
+    color: rgba(var(--pi-on-surface), 0.56);
     opacity: 1;
   }
 
@@ -808,13 +800,13 @@ function handlePaste(event: ClipboardEvent) {
   }
 
   .input-action-btn:not(:disabled) {
-    background: rgb(var(--v-theme-on-surface)) !important;
-    color: rgb(var(--v-theme-surface)) !important;
+    background: rgb(var(--pi-on-surface)) !important;
+    color: rgb(var(--pi-surface)) !important;
   }
 
   .input-action-btn:disabled {
-    background: rgba(var(--v-theme-on-surface), 0.04) !important;
-    color: rgba(var(--v-theme-on-surface), 0.18) !important;
+    background: rgba(var(--pi-on-surface), 0.04) !important;
+    color: rgba(var(--pi-on-surface), 0.18) !important;
   }
 
   :deep(.provider-chip) {
@@ -823,7 +815,7 @@ function handlePaste(event: ClipboardEvent) {
     border-radius: 999px !important;
     padding: 0 12px !important;
     font-size: 14px !important;
-    border-color: rgba(var(--v-theme-on-surface), 0.18) !important;
+    border-color: rgba(var(--pi-on-surface), 0.18) !important;
     background: transparent !important;
   }
 

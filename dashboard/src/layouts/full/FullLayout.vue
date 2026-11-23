@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiNotice from '@/ui/UiNotice.vue'
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { useDisplay } from 'vuetify'
+import { useViewport } from '@/ui/appearance'
 import { RouterView, useRoute } from 'vue-router'
 import VerticalSidebar from './vertical-sidebar/VerticalSidebar.vue'
 import VerticalHeader from './vertical-header/VerticalHeader.vue'
@@ -32,13 +34,19 @@ const notificationTimeout = computed(() => {
   }
   return 8000
 })
-const display = useDisplay()
+const display = useViewport()
 const drawer = ref(!display.mobile.value)
 watch(display.mobile, (mobile) => {
-  if (mobile) {
-    drawer.value = false
-  }
+  drawer.value = !mobile
 })
+watch(
+  () => route.fullPath,
+  () => {
+    if (display.mobile.value) {
+      drawer.value = false
+    }
+  }
+)
 const unsaved = ref<DialogHandle>()
 const confirmation = ref<DialogHandle>()
 onMounted(() => {
@@ -62,30 +70,28 @@ onBeforeUnmount(workspace.disconnect)
 </script>
 
 <template>
-  <v-locale-provider
-    ><v-app>
+  <div class="pi-locale">
+    <div class="pi-shell" :class="{ 'with-navigation': drawer }">
       <VerticalHeader @toggle-navigation="drawer = !drawer" />
       <VerticalSidebar v-model="drawer" />
-      <v-main
-        ><v-container fluid class="page-wrapper pa-4 pa-md-6">
-          <v-alert v-if="workspace.connectionError" type="error" variant="tonal" class="mb-4"
-            >{{ workspace.connectionError
-            }}<v-btn variant="text" @click="notifications.run(workspace.refresh)">重试连接</v-btn></v-alert
-          >
+      <main class="pi-main">
+        <div class="pi-container page-wrapper pa-4 pa-md-6">
+          <div v-if="workspace.connectionError" data-tone="error" class="pi-alert mb-4">
+            {{ workspace.connectionError
+            }}<UiButton variant="text" @click="notifications.run(workspace.refresh)">重试连接</UiButton>
+          </div>
           <PreviewBar v-if="researchMode" />
           <RouterView v-if="workspace.snapshot" :key="route.path + research.presetId" />
-          <v-progress-linear
-            v-else-if="!workspace.connectionError"
-            indeterminate
-            aria-label="加载工作台"
-          /> </v-container
-      ></v-main>
-      <v-snackbar v-model="notifications.visible" :timeout="notificationTimeout" multi-line>
+          <progress class="pi-progress" v-else-if="!workspace.connectionError" aria-label="加载工作台" />
+        </div>
+      </main>
+      <UiNotice :message="notifications.text" v-model="notifications.visible" :timeout="notificationTimeout">
         {{ notifications.text }}
         <template #actions
-          ><v-btn variant="text" @click="notifications.visible = false">关闭</v-btn></template
+          ><UiButton variant="text" @click="notifications.visible = false">关闭</UiButton></template
         >
-      </v-snackbar>
-      <UnsavedChangesConfirmDialog ref="unsaved" /><ConfirmDialog ref="confirmation" /> </v-app
-  ></v-locale-provider>
+      </UiNotice>
+      <UnsavedChangesConfirmDialog ref="unsaved" /><ConfirmDialog ref="confirmation" />
+    </div>
+  </div>
 </template>

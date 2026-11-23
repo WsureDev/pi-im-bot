@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import UiChip from '@/ui/UiChip.vue'
+import UiFile from '@/ui/fields/UiFile.vue'
 import { computed, inject, ref, watch } from 'vue'
 import { z } from 'zod'
 import { PluginConfigIdKey } from '@/api/plugin-configuration'
@@ -87,21 +89,22 @@ function remove(value: string) {
 
 <template>
   <div>
-    <v-file-input
+    <UiFile
+      rejection-message="请选择允许格式且不超过 5 MiB 的图片"
+      :max-size="5 * 1024 * 1024"
       v-model="picker"
       :accept="accept"
       multiple
       :disabled="busy"
       label="选择背景图片"
       hint="PNG / JPEG，每张不超过 5 MiB；上传后点击页面保存"
-      persistent-hint
       @update:model-value="upload"
     />
-    <v-chip v-for="value in values" :key="value" closable class="ma-1" @click:close="remove(value)"
+    <UiChip v-for="value in values" :key="value" closable class="ma-1" @click:close="remove(value)"
       ><a :href="fileUrl(value)" target="_blank" rel="noopener noreferrer">{{
         names[value] || '背景图片'
-      }}</a></v-chip
+      }}</a></UiChip
     >
-    <v-alert v-if="error" type="error" density="compact">{{ error }}</v-alert>
+    <div class="pi-alert" v-if="error" data-tone="error">{{ error }}</div>
   </div>
 </template>

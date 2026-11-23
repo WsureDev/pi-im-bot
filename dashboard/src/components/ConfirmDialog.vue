@@ -1,23 +1,26 @@
 <template>
-  <v-dialog v-model="isOpen" max-width="400">
-    <v-card>
-      <v-card-title class="text-h3 pa-4 pb-0 pl-6">{{ title }}</v-card-title>
-      <v-card-text>{{ message }}</v-card-text>
-      <v-card-actions>
-        <v-spacer></v-spacer>
-        <v-btn color="gray" variant="text" @click="handleCancel">{{
+  <UiDialog :model-value="isOpen" :label="title" @update:model-value="handleCancel" max-width="400">
+    <UiCard>
+      <div class="pi-card-title text-h3 pa-4 pb-0 pl-6">{{ title }}</div>
+      <div class="pi-section">{{ message }}</div>
+      <footer class="pi-actions">
+        <span class="pi-spacer"></span>
+        <UiButton color="gray" variant="text" @click="handleCancel">{{
           t('core.common.dialog.cancelButton')
-        }}</v-btn>
-        <v-btn color="red" variant="tonal" @click="handleConfirm">{{
+        }}</UiButton>
+        <UiButton color="red" variant="tonal" @click="handleConfirm">{{
           t('core.common.dialog.confirmButton')
-        }}</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        }}</UiButton>
+      </footer>
+    </UiCard>
+  </UiDialog>
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiDialog from '@/ui/UiDialog.vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { useI18n } from '@/i18n/composables'
 
 const { t } = useI18n()
@@ -25,27 +28,31 @@ const { t } = useI18n()
 const isOpen = ref(false)
 const title = ref('')
 const message = ref('')
-let resolvePromise = null // ✅ 确保 Promise 句柄可用
-
-const open = (options) => {
+interface Confirmation {
+  title?: string
+  message?: string
+}
+let resolvePending: ((accepted: boolean) => void) | undefined
+function open(options: Confirmation) {
+  settle(false)
   title.value = options.title || t('core.common.dialog.confirmTitle')
   message.value = options.message || t('core.common.dialog.confirmMessage')
   isOpen.value = true
-
-  return new Promise((resolve) => {
-    resolvePromise = resolve // ✅ 赋值 Promise 解析方法
+  return new Promise<boolean>((resolve) => {
+    resolvePending = resolve
   })
 }
-
-const handleConfirm = () => {
+function settle(accepted: boolean) {
   isOpen.value = false
-  if (resolvePromise) resolvePromise(true) // ✅ 解析 Promise
+  resolvePending?.(accepted)
+  resolvePending = undefined
 }
-
-const handleCancel = () => {
-  isOpen.value = false
-  if (resolvePromise) resolvePromise(false) // ✅ 解析 Promise
+function handleConfirm() {
+  settle(true)
 }
-
-defineExpose({ open }) // ✅ 确保 `confirmPlugin.ts` 可以访问 `open`
+function handleCancel() {
+  settle(false)
+}
+onBeforeUnmount(handleCancel)
+defineExpose({ open })
 </script>

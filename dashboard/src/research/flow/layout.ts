@@ -47,9 +47,9 @@ export function flowLayout(view: FlowView, selected: string) {
       id: edge.source + ':' + edge.target,
       type: 'smoothstep',
       markerEnd: MarkerType.ArrowClosed,
-      style: { stroke: 'rgb(var(--v-theme-primary))', strokeWidth: 1.8 },
-      labelStyle: { fill: 'rgb(var(--v-theme-on-surface))', fontSize: 15 },
-      labelBgStyle: { fill: 'rgb(var(--v-theme-surface))' }
+      style: { stroke: 'rgb(var(--pi-primary))', strokeWidth: 1.8 },
+      labelStyle: { fill: 'rgb(var(--pi-on-surface))', fontSize: 15 },
+      labelBgStyle: { fill: 'rgb(var(--pi-surface))' }
     }
   })
   return { nodes, edges }

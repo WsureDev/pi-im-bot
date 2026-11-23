@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import UiAccordion from '@/ui/UiAccordion.vue'
+import UiButton from '@/ui/UiButton.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiDataTable from '@/ui/table/UiDataTable.vue'
+import UiDisclosure from '@/ui/UiDisclosure.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { onMounted, ref, computed } from 'vue'
 import { z } from 'zod'
 import { PluginConfigViewSchema, type PluginConfigTarget } from '@core/plugins/configuration/contracts'
@@ -73,16 +80,16 @@ onMounted(() => {
 })
 </script>
 <template>
-  <v-select
+  <UiChoice
     :model-value="target"
     @update:model-value="notifications.run(() => selectTarget($event))"
     :items="targets.map((entry) => ({ title: entry.name, value: JSON.stringify(entry.target) }))"
     label="选择应用范围"
     aria-label="选择应用范围"
   />
-  <v-switch v-model="draft.selected" label="在此范围选择插件" />
-  <v-alert v-if="state?.error" type="error" variant="tonal">{{ state.error }}</v-alert>
-  <v-data-table
+  <UiCheck v-model="draft.selected" label="在此范围选择插件" />
+  <div class="pi-alert" v-if="state?.error" data-tone="error">{{ state.error }}</div>
+  <UiDataTable
     :items="draft.changes"
     :headers="[
       { title: '处理器', key: 'key' },
@@ -92,25 +99,17 @@ onMounted(() => {
     :items-per-page="25"
   >
     <template #item.priority="{ item }"
-      ><v-text-field
-        v-model.number="item.priority"
-        type="number"
-        min="-100000"
-        max="100000"
-        hide-details
-        label="优先级"
+      ><UiText v-model.number="item.priority" type="number" min="-100000" max="100000" label="优先级"
     /></template>
-    <template #item.disabled="{ item }"
-      ><v-switch v-model="item.disabled" hide-details label="禁用"
-    /></template>
-  </v-data-table>
-  <v-expansion-panels class="my-4"
-    ><v-expansion-panel title="生效顺序与依赖"
-      ><v-expansion-panel-text>
+    <template #item.disabled="{ item }"><UiCheck v-model="item.disabled" label="禁用" /></template>
+  </UiDataTable>
+  <UiAccordion class="my-4"
+    ><UiDisclosure title="生效顺序与依赖"
+      ><div class="pi-disclosure-body">
         <pre>{{ JSON.stringify({ handlers: state?.handlers, order: state?.order }, null, 2) }}</pre>
-      </v-expansion-panel-text></v-expansion-panel
-    ></v-expansion-panels
+      </div></UiDisclosure
+    ></UiAccordion
   >
-  <v-btn class="mr-3" @click="notifications.run(() => save(true))">恢复顺序继承</v-btn
-  ><v-btn variant="flat" color="primary" @click="notifications.run(() => save())">保存范围与顺序</v-btn>
+  <UiButton class="mr-3" @click="notifications.run(() => save(true))">恢复顺序继承</UiButton
+  ><UiButton variant="flat" color="primary" @click="notifications.run(() => save())">保存范围与顺序</UiButton>
 </template>

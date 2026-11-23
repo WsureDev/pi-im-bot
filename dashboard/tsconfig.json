@@ -41,6 +41,7 @@
     "src/**/*.mjs"
   ],
   "vueCompilerOptions": {
-    "strictTemplates": true
+    "strictTemplates": true,
+    "dataAttributes": ["data-*"]
   }
 }

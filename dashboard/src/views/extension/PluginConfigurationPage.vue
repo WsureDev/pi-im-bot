@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
 import { computed, ref, provide, onMounted, toRaw } from 'vue'
 import {
   PluginConfigViewSchema,
@@ -148,10 +152,10 @@ onMounted(() => {
 })
 </script>
 <template>
-  <v-progress-linear v-if="busy" indeterminate />
-  <v-alert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</v-alert>
-  <v-form v-if="view" @submit.prevent="save">
-    <v-select
+  <progress class="pi-progress" v-if="busy" />
+  <div v-if="error" data-tone="error" class="pi-alert mb-4">{{ error }}</div>
+  <form class="pi-form" v-if="view" @submit.prevent="save">
+    <UiChoice
       :model-value="target"
       @update:model-value="notifications.run(() => selectTarget($event))"
       label="配置范围"
@@ -159,20 +163,15 @@ onMounted(() => {
       :disabled="busy"
       aria-label="配置范围"
     />
-    <v-alert v-if="view.gsviConfiguration" type="info" variant="tonal" class="mb-4"
-      >{{ view.gsviConfiguration.voiceHint
+    <div v-if="view.gsviConfiguration" data-tone="info" class="pi-alert mb-4">
+      {{ view.gsviConfiguration.voiceHint
       }}<span v-if="view.gsviConfiguration.refreshDisabled"
         >当前插件或执行环境未启用，上游音色不会被请求。</span
-      ></v-alert
-    >
-    <v-alert
-      v-for="issue in issues"
-      :key="issue.path + issue.message"
-      type="error"
-      variant="tonal"
-      class="mb-2"
-      >{{ issue.path }}：{{ issue.message }}</v-alert
-    >
+      >
+    </div>
+    <div v-for="issue in issues" :key="issue.path + issue.message" data-tone="error" class="pi-alert mb-2">
+      {{ issue.path }}：{{ issue.message }}
+    </div>
     <AstrBotConfig
       :metadata="metadata"
       metadata-key="plugin"
@@ -181,9 +180,9 @@ onMounted(() => {
       :enable-default-reset="true"
       :disabled="busy"
     />
-    <v-card v-if="draft.bindings.length" title="服务与能力绑定" class="mt-4"
-      ><v-card-text>
-        <v-select
+    <UiCard v-if="draft.bindings.length" title="服务与能力绑定" class="mt-4"
+      ><div class="pi-section">
+        <UiChoice
           v-for="binding in draft.bindings"
           :key="binding.kind + binding.alias"
           v-model="binding.value"
@@ -191,16 +190,16 @@ onMounted(() => {
           :items="binding.choices.map((choice) => ({ title: choice.name, value: choice.id }))"
           :disabled="busy"
           :hint="binding.kind"
-          persistent-hint
           :aria-label="binding.title"
-        /> </v-card-text
-    ></v-card>
-    <v-card-actions class="mt-4"
-      ><v-chip v-if="changes.dirty.value" color="warning">有未保存的修改</v-chip><v-spacer /><v-btn
+        /></div
+    ></UiCard>
+    <footer class="pi-actions mt-4">
+      <UiChip v-if="changes.dirty.value" color="warning">有未保存的修改</UiChip
+      ><span class="pi-spacer" /><UiButton
         :disabled="busy"
         @click="notifications.run(() => load(view!.target))"
-        >放弃修改并刷新</v-btn
-      ><v-btn type="submit" color="primary" variant="flat" :loading="busy">保存配置</v-btn></v-card-actions
-    >
-  </v-form>
+        >放弃修改并刷新</UiButton
+      ><UiButton type="submit" color="primary" variant="flat" :loading="busy">保存配置</UiButton>
+    </footer>
+  </form>
 </template>

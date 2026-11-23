@@ -1,38 +1,32 @@
 <template>
   <div class="template-list-editor" :inert="disabled">
     <div class="top-bar d-flex align-center justify-end mb-3">
-      <v-menu transition="fade-transition">
-        <template #activator="{ props: menuProps }">
-          <v-btn color="primary" variant="tonal" size="small" v-bind="menuProps" prepend-icon="mdi-plus">
-            {{ addButtonText }}
-          </v-btn>
-        </template>
-        <v-list density="compact">
-          <v-list-item v-for="option in templateOptions" :key="option.value" @click="addEntry(option.value)">
-            <v-list-item-title>{{ option.label }}</v-list-item-title>
-            <v-list-item-subtitle v-if="option.hint">{{ option.hint }}</v-list-item-subtitle>
-          </v-list-item>
-        </v-list>
-      </v-menu>
+      <UiMenu :label="addButtonText" show-label icon="mdi-plus">
+        <div class="pi-list">
+          <UiMenuAction
+            :value="option.value"
+            v-for="option in templateOptions"
+            :key="option.value"
+            @choose="addEntry(option.value)"
+          >
+            <div class="pi-list-title">{{ option.label }}</div>
+            <div class="pi-subtitle" v-if="option.hint">{{ option.hint }}</div>
+          </UiMenuAction>
+        </div>
+      </UiMenu>
     </div>
 
-    <v-alert
-      v-if="!modelValue || modelValue.length === 0"
-      type="info"
-      variant="tonal"
-      density="compact"
-      class="mb-3"
-    >
+    <div v-if="!modelValue || modelValue.length === 0" data-tone="info" class="pi-alert mb-3">
       {{ emptyHintText }}
-    </v-alert>
+    </div>
 
-    <v-card v-for="(entry, entryIndex) in modelValue" :key="entry.__entry_id" variant="outlined" class="mb-3">
-      <v-card-title
-        class="d-flex align-center justify-space-between entry-header"
+    <UiCard v-for="(entry, entryIndex) in modelValue" :key="entry.__entry_id" variant="outlined" class="mb-3">
+      <div
+        class="pi-card-title d-flex align-center justify-space-between entry-header"
         @click="toggleEntry(entryIndex)"
       >
         <div class="d-flex align-center ga-2">
-          <v-btn
+          <UiButton
             icon
             size="small"
             variant="text"
@@ -42,32 +36,37 @@
                 : t('core.common.expand') || '展开'
             "
           >
-            <v-icon>{{ expandedEntries[entryIndex] ? 'mdi-chevron-down' : 'mdi-chevron-right' }}</v-icon>
-          </v-btn>
+            <UiIcon :icon="expandedEntries[entryIndex] ? 'mdi-chevron-down' : 'mdi-chevron-right'"></UiIcon>
+          </UiButton>
           <div class="d-flex flex-column">
-            <v-list-item-title class="property-name">{{
-              templateLabel(entry.__template_key)
-            }}</v-list-item-title>
-            <v-list-item-subtitle class="property-hint entry-display-text" v-if="templateDisplayText(entry)">
+            <div class="pi-list-title property-name">{{ templateLabel(entry.__template_key) }}</div>
+            <div class="pi-subtitle property-hint entry-display-text" v-if="templateDisplayText(entry)">
               {{ templateDisplayText(entry) }}
-            </v-list-item-subtitle>
-            <v-list-item-subtitle class="property-hint" v-if="templateHintText(entry)">
+            </div>
+            <div class="pi-subtitle property-hint" v-if="templateHintText(entry)">
               {{ templateHintText(entry) }}
-            </v-list-item-subtitle>
+            </div>
           </div>
         </div>
         <div class="d-flex align-center ga-1">
-          <v-btn icon size="small" variant="text" color="error" @click.stop="removeEntry(entryIndex)">
-            <v-icon>mdi-delete</v-icon>
-          </v-btn>
+          <UiButton
+            icon
+            size="small"
+            variant="text"
+            color="error"
+            aria-label="删除模板条目"
+            @click.stop="removeEntry(entryIndex)"
+          >
+            <UiIcon icon="mdi-delete"></UiIcon>
+          </UiButton>
         </div>
-      </v-card-title>
-      <v-expand-transition>
-        <v-card-text v-show="expandedEntries[entryIndex]" class="px-0 py-1">
+      </div>
+      <Transition>
+        <div v-show="expandedEntries[entryIndex]" class="pi-section px-0 py-1">
           <div v-if="!getTemplate(entry)" class="px-4 py-2">
-            <v-alert type="error" variant="tonal" density="compact">{{
-              t('core.common.templateList.missingTemplate') || '找不到对应模板，请删除后重新添加。'
-            }}</v-alert>
+            <div class="pi-alert" data-tone="error">
+              {{ t('core.common.templateList.missingTemplate') || '找不到对应模板，请删除后重新添加。' }}
+            </div>
           </div>
           <div v-else class="template-entry-body">
             <AstrBotConfig
@@ -81,13 +80,18 @@
               :enable-default-reset="true"
             />
           </div>
-        </v-card-text>
-      </v-expand-transition>
-    </v-card>
+        </div>
+      </Transition>
+    </UiCard>
   </div>
 </template>
 
 <script setup>
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiIcon from '@/ui/UiIcon.vue'
+import UiMenu from '@/ui/UiMenu.vue'
+import UiMenuAction from '@/ui/UiMenuAction.vue'
 import { computed, ref, watch } from 'vue'
 import AstrBotConfig from './AstrBotConfig.vue'
 import { configurationId } from '@core/config/identity'
@@ -395,12 +399,12 @@ function hasVisibleItemsAfter(entries, currentIndex, entry) {
 .config-title {
   font-weight: 600;
   font-size: 1rem;
-  color: var(--v-theme-primaryText);
+  color: rgb(var(--pi-primaryText));
 }
 
 .config-hint {
   font-size: 0.75rem;
-  color: var(--v-theme-secondaryText);
+  color: rgb(var(--pi-secondaryText));
   margin-top: 2px;
 }
 
@@ -426,17 +430,17 @@ function hasVisibleItemsAfter(entries, currentIndex, entry) {
 .property-name {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--v-theme-primaryText);
+  color: rgb(var(--pi-primaryText));
 }
 
 .property-hint {
   font-size: 0.75rem;
-  color: var(--v-theme-secondaryText);
+  color: rgb(var(--pi-secondaryText));
   margin-top: 2px;
 }
 
 .entry-display-text {
-  color: var(--v-theme-primary);
+  color: rgb(var(--pi-primary));
   font-weight: 500;
 }
 

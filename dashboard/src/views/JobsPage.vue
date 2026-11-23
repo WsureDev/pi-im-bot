@@ -1,4 +1,14 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiCol from '@/ui/UiCol.vue'
+import UiDataTable from '@/ui/table/UiDataTable.vue'
+import UiDialog from '@/ui/UiDialog.vue'
+import UiMenu from '@/ui/UiMenu.vue'
+import UiMenuAction from '@/ui/UiMenuAction.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { computed, ref } from 'vue'
 import { z } from 'zod'
 import { JobSchema, JobSummarySchema, jobTerminal, type JobSummary } from '@core/jobs/schema'
@@ -109,15 +119,15 @@ async function showReceipt(job: JobSummary) {
 }
 </script>
 <template>
-  <v-toolbar color="transparent"
-    ><v-toolbar-title>后台任务</v-toolbar-title
-    ><v-btn @click="notifications.run(workspace.refresh)">刷新</v-btn
-    ><v-btn variant="flat" color="primary" @click="dialog = true">创建后台 Agent</v-btn></v-toolbar
-  >
-  <v-row
-    ><v-col><v-text-field v-model="search" label="搜索任务" /></v-col
-    ><v-col
-      ><v-select
+  <header class="pi-toolbar">
+    <div class="pi-toolbar-title">后台任务</div>
+    <UiButton @click="notifications.run(workspace.refresh)">刷新</UiButton
+    ><UiButton variant="flat" color="primary" @click="dialog = true">创建后台 Agent</UiButton>
+  </header>
+  <div class="pi-row">
+    <UiCol><UiText v-model="search" label="搜索任务" /></UiCol
+    ><UiCol
+      ><UiChoice
         v-model="room"
         :items="workspace.snapshot?.rooms ?? []"
         item-title="name"
@@ -125,10 +135,11 @@ async function showReceipt(job: JobSummary) {
         clearable
         label="渠道"
         @update:model-value="notifications.run(() => loadHistory())"
-        aria-label="渠道" /></v-col
-  ></v-row>
-  <v-card
-    ><v-data-table
+        aria-label="渠道"
+    /></UiCol>
+  </div>
+  <UiCard
+    ><UiDataTable
       :items="rows"
       :search="search"
       show-expand
@@ -142,80 +153,82 @@ async function showReceipt(job: JobSummary) {
       ]"
     >
       <template #item.state="{ item }"
-        ><v-chip size="small">{{ jobStateLabel(item.state) }}</v-chip></template
+        ><UiChip size="small">{{ jobStateLabel(item.state) }}</UiChip></template
       ><template #item.delivery="{ item }"
-        ><v-chip size="small">{{ deliveryLabel(item.delivery) }}</v-chip></template
+        ><UiChip size="small">{{ deliveryLabel(item.delivery) }}</UiChip></template
       >
       <template #item.actions="{ item }"
-        ><v-menu
-          ><template #activator="{ props }"
-            ><v-btn v-bind="props" icon="mdi-dots-vertical" variant="text" aria-label="任务操作" /></template
-          ><v-list>
-            <v-list-item :to="'/chat/' + item.roomId" title="查看聊天" /><v-list-item
+        ><UiMenu label="任务操作"
+          ><div class="pi-list">
+            <UiMenuAction :to="'/chat/' + item.roomId" title="查看聊天" /><UiMenuAction
               title="查看交付回执"
-              @click="notifications.run(() => showReceipt(item))"
+              @choose="notifications.run(() => showReceipt(item))"
             />
-            <v-list-item
+            <UiMenuAction
               v-if="!jobTerminal(item.state) || item.delivery === 'pending'"
               title="停止此任务"
-              @click="notifications.run(() => act(item, 'cancel'))"
+              @choose="notifications.run(() => act(item, 'cancel'))"
             />
-            <v-list-item
+            <UiMenuAction
               v-if="item.kind === 'agent'"
               title="补充 / 修订"
-              @click="notifications.run(() => revise(item))"
+              @choose="notifications.run(() => revise(item))"
             />
-            <v-list-item
+            <UiMenuAction
               v-if="item.state === 'outcome_unknown' && item.external?.hasReceipt"
               title="核对远端状态"
-              @click="notifications.run(() => act(item, 'reconcile'))"
+              @choose="notifications.run(() => act(item, 'reconcile'))"
             />
-            <v-list-item
+            <UiMenuAction
               v-if="item.state === 'outcome_unknown' && item.external?.hasReceipt"
               title="取消远端任务"
-              @click="notifications.run(() => act(item, 'reconcile', true))"
-            /> </v-list></v-menu
+              @choose="notifications.run(() => act(item, 'reconcile', true))"
+            /></div></UiMenu
       ></template>
       <template #expanded-row="{ item, columns }"
         ><tr>
           <td :colspan="columns.length" class="pa-4">
             <p>{{ item.id }} · {{ item.parentJobId }}</p>
-            <v-alert v-if="item.error || item.deliveryError" type="error" variant="tonal"
-              >{{ item.error }} {{ item.deliveryError }}</v-alert
-            >
+            <div class="pi-alert" v-if="item.error || item.deliveryError" data-tone="error">
+              {{ item.error }} {{ item.deliveryError }}
+            </div>
             <pre>{{ item.result?.summary }}</pre>
             <pre>{{ JSON.stringify(item.result?.items, null, 2) }}</pre>
             <pre>{{ JSON.stringify(item.external, null, 2) }}</pre>
-            <v-btn
+            <UiButton
               v-for="artifactId in item.result?.artifactIds"
               :key="artifactId"
               :href="'/api/rooms/' + id(item.roomId) + '/artifacts/' + id(artifactId) + '/content'"
               target="_blank"
               rel="noopener"
-              >下载产物</v-btn
+              >下载产物</UiButton
             >
           </td>
         </tr></template
       >
-    </v-data-table></v-card
-  ><v-btn v-if="nextPage !== undefined" class="mt-4" @click="notifications.run(() => loadHistory(true))"
-    >加载更早的任务</v-btn
+    </UiDataTable></UiCard
+  ><UiButton v-if="nextPage !== undefined" class="mt-4" @click="notifications.run(() => loadHistory(true))"
+    >加载更早的任务</UiButton
   >
-  <v-dialog v-model="dialog" persistent max-width="650"
-    ><v-card title="创建后台 Agent"
-      ><v-card-text :inert="busy"
-        ><v-select
+  <UiDialog v-model="dialog" persistent max-width="650"
+    ><UiCard title="创建后台 Agent"
+      ><div class="pi-section" :inert="busy">
+        <UiChoice
           v-model="draft.roomId"
           :items="workspace.snapshot?.rooms ?? []"
           item-title="name"
           item-value="id"
           label="渠道"
-          aria-label="渠道" /><v-text-field v-model="draft.title" label="任务标题" /><v-textarea
+          aria-label="渠道"
+        /><UiText v-model="draft.title" label="任务标题" /><UiText
+          multiline
           v-model="draft.prompt"
           label="任务说明"
-          rows="6" /></v-card-text
-      ><v-card-actions
-        ><v-spacer /><v-btn
+          rows="6"
+        />
+      </div>
+      <footer class="pi-actions">
+        <span class="pi-spacer" /><UiButton
           @click="
             changes.discard().then((leave) => {
               if (leave) {
@@ -224,19 +237,18 @@ async function showReceipt(job: JobSummary) {
               }
             })
           "
-          >取消</v-btn
-        ><v-btn variant="flat" color="primary" @click="notifications.run(create)"
-          >提交后台任务</v-btn
-        ></v-card-actions
-      ></v-card
-    ></v-dialog
+          >取消</UiButton
+        ><UiButton variant="flat" color="primary" @click="notifications.run(create)">提交后台任务</UiButton>
+      </footer></UiCard
+    ></UiDialog
   >
-  <v-dialog v-model="revisionDialog" persistent max-width="650"
-    ><v-card title="修订共享任务"
-      ><v-card-text :inert="busy"
-        ><v-textarea v-model="revision.instruction" label="补充说明" rows="6" /></v-card-text
-      ><v-card-actions
-        ><v-spacer /><v-btn
+  <UiDialog v-model="revisionDialog" persistent max-width="650"
+    ><UiCard title="修订共享任务"
+      ><div class="pi-section" :inert="busy">
+        <UiText multiline v-model="revision.instruction" label="补充说明" rows="6" />
+      </div>
+      <footer class="pi-actions">
+        <span class="pi-spacer" /><UiButton
           @click="
             revisionChanges.discard().then((leave) => {
               if (leave) {
@@ -245,18 +257,21 @@ async function showReceipt(job: JobSummary) {
               }
             })
           "
-          >取消</v-btn
-        ><v-btn variant="flat" color="primary" @click="notifications.run(saveRevision)"
-          >提交新版本</v-btn
-        ></v-card-actions
-      ></v-card
-    ></v-dialog
+          >取消</UiButton
+        ><UiButton variant="flat" color="primary" @click="notifications.run(saveRevision)"
+          >提交新版本</UiButton
+        >
+      </footer></UiCard
+    ></UiDialog
   >
-  <v-dialog v-model="receiptDialog" max-width="900"
-    ><v-card title="平台交付回执"
-      ><v-card-text :inert="busy">
-        <pre>{{ JSON.stringify(receipt?.delivery, null, 2) }}</pre></v-card-text
-      ><v-card-actions><v-spacer /><v-btn @click="receiptDialog = false">关闭</v-btn></v-card-actions></v-card
-    ></v-dialog
+  <UiDialog v-model="receiptDialog" max-width="900"
+    ><UiCard title="平台交付回执"
+      ><div class="pi-section" :inert="busy">
+        <pre>{{ JSON.stringify(receipt?.delivery, null, 2) }}</pre>
+      </div>
+      <footer class="pi-actions">
+        <span class="pi-spacer" /><UiButton @click="receiptDialog = false">关闭</UiButton>
+      </footer></UiCard
+    ></UiDialog
   >
 </template>

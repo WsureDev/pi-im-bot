@@ -1,4 +1,15 @@
 <script setup lang="ts">
+import { TabsTab } from '@ui-sdk/vue/tabs'
+import UiAccordion from '@/ui/UiAccordion.vue'
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiDataTable from '@/ui/table/UiDataTable.vue'
+import UiDisclosure from '@/ui/UiDisclosure.vue'
+import UiListItem from '@/ui/UiListItem.vue'
+import UiTabs from '@/ui/UiTabs.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { z } from 'zod'
@@ -153,34 +164,33 @@ onMounted(() => {
 </script>
 <template>
   <div class="plugin-workspace">
-    <v-toolbar color="transparent"
-      ><v-toolbar-title>插件中心</v-toolbar-title
-      ><v-btn prepend-icon="mdi-refresh" @click="notifications.run(load)">刷新</v-btn
-      ><v-btn to="/plugins" prepend-icon="mdi-puzzle-outline">插件列表</v-btn></v-toolbar
-    >
-    <v-alert v-if="state && !state.runtimeEnabled" type="warning" variant="tonal" class="mb-4"
-      >插件执行环境未启用。<v-btn variant="text" @click="changeTab('runtime')">配置运行环境</v-btn></v-alert
-    >
+    <header class="pi-toolbar">
+      <div class="pi-toolbar-title">插件中心</div>
+      <UiButton prepend-icon="mdi-refresh" @click="notifications.run(load)">刷新</UiButton
+      ><UiButton to="/plugins" prepend-icon="mdi-puzzle-outline">插件列表</UiButton>
+    </header>
+    <div v-if="state && !state.runtimeEnabled" data-tone="warning" class="pi-alert mb-4">
+      插件执行环境未启用。<UiButton variant="text" @click="changeTab('runtime')">配置运行环境</UiButton>
+    </div>
     <template v-if="selected">
-      <v-card :title="selected.name" :subtitle="selected.bundle?.manifest.description">
-        <v-card-actions
-          ><v-chip>{{ selected.state }}</v-chip
-          ><v-spacer /><v-btn @click="notifications.run(() => toggle(selected!))">{{
+      <UiCard :title="selected.name" :subtitle="selected.bundle?.manifest.description">
+        <footer class="pi-actions">
+          <UiChip>{{ selected.state }}</UiChip
+          ><span class="pi-spacer" /><UiButton @click="notifications.run(() => toggle(selected!))">{{
             toggleLabel(selected.enabled)
-          }}</v-btn
-          ><v-btn @click="notifications.run(() => allow(selected!))">允许所需能力</v-btn
-          ><v-btn @click="notifications.run(() => update(selected!))">强制更新</v-btn
-          ><v-btn color="error" @click="notifications.run(() => remove(selected!))"
-            >删除</v-btn
-          ></v-card-actions
-        >
-        <v-tabs
+          }}</UiButton
+          ><UiButton @click="notifications.run(() => allow(selected!))">允许所需能力</UiButton
+          ><UiButton @click="notifications.run(() => update(selected!))">强制更新</UiButton
+          ><UiButton color="error" @click="notifications.run(() => remove(selected!))">删除</UiButton>
+        </footer>
+        <UiTabs
           :model-value="detailTab"
           @update:model-value="notifications.run(() => section(String($event)))"
-          ><v-tab value="configuration">配置</v-tab><v-tab value="order">范围与顺序</v-tab
-          ><v-tab value="documents">使用方法与版本</v-tab><v-tab value="pipeline">执行流程</v-tab></v-tabs
+          ><TabsTab value="configuration">配置</TabsTab><TabsTab value="order">范围与顺序</TabsTab
+          ><TabsTab value="documents">使用方法与版本</TabsTab
+          ><TabsTab value="pipeline">执行流程</TabsTab></UiTabs
         >
-        <v-card-text>
+        <div class="pi-section">
           <PluginConfigurationPage
             v-if="detailTab === 'configuration'"
             :key="selected.id"
@@ -190,78 +200,78 @@ onMounted(() => {
           <PipelinePage v-else-if="detailTab === 'pipeline'" :plugin-id="selected.id" />
           <PluginOrderPage v-else-if="detailTab === 'order'" :plugin-id="selected.id" />
           <template v-else>
-            <v-list
-              ><v-list-item
+            <div class="pi-list">
+              <UiListItem
                 v-for="command in selected.bundle?.manifest.commands"
                 :key="command.names.join(',')"
                 :title="command.names.join(' / ')"
-                :subtitle="command.description" /><v-list-item
+                :subtitle="command.description"
+              /><UiListItem
                 v-for="operation in selected.bundle?.manifest.operations"
                 :key="operation.id"
                 :title="operation.title"
                 :subtitle="operation.grants.join('、')"
-            /></v-list>
-            <v-expansion-panels class="mb-4"
-              ><v-expansion-panel title="已保存的版本"
-                ><v-expansion-panel-text
-                  ><v-list
-                    ><v-list-item
+              />
+            </div>
+            <UiAccordion class="mb-4"
+              ><UiDisclosure title="已保存的版本"
+                ><div class="pi-disclosure-body">
+                  <div class="pi-list">
+                    <UiListItem
                       v-for="release in releases"
                       :key="release.release"
                       :title="release.version"
                       :subtitle="new Date(release.importedAt).toLocaleString()"
                       ><template #append
-                        ><v-btn @click="notifications.run(() => chooseRelease(release.release))"
-                          >回选此版本</v-btn
+                        ><UiButton @click="notifications.run(() => chooseRelease(release.release))"
+                          >回选此版本</UiButton
                         ></template
-                      ></v-list-item
-                    ></v-list
-                  ></v-expansion-panel-text
-                ></v-expansion-panel
-              ></v-expansion-panels
+                      ></UiListItem
+                    >
+                  </div>
+                </div></UiDisclosure
+              ></UiAccordion
             >
-            <v-btn
+            <UiButton
               :href="'/api/plugins/' + id(selected.id) + '/archive'"
               prepend-icon="mdi-download"
               class="mb-4"
-              >导出插件包</v-btn
+              >导出插件包</UiButton
             >
             <MarkdownMessagePart :content="readme" :refs="null" :is-dark="false" :custom-html-tags="[]" />
           </template>
-        </v-card-text>
-      </v-card>
+        </div>
+      </UiCard>
     </template>
     <template v-else>
-      <v-tabs :model-value="tab" @update:model-value="changeTab(String($event))"
-        ><v-tab value="installed">已安装</v-tab><v-tab value="install">发现与安装</v-tab
-        ><v-tab value="pipeline">编排</v-tab><v-tab value="runtime">运行环境</v-tab></v-tabs
+      <UiTabs :model-value="tab" @update:model-value="changeTab(String($event))"
+        ><TabsTab value="installed">已安装</TabsTab><TabsTab value="install">发现与安装</TabsTab
+        ><TabsTab value="pipeline">编排</TabsTab><TabsTab value="runtime">运行环境</TabsTab></UiTabs
       >
-      <v-card class="mt-4"
-        ><v-card-text>
+      <UiCard class="mt-4"
+        ><div class="pi-section">
           <template v-if="tab === 'installed'"
-            ><v-text-field
+            ><UiText
               v-model="search"
               label="搜索插件"
               prepend-inner-icon="mdi-magnify"
-              clearable /><v-data-table
+              clearable /><UiDataTable
               :items="state?.plugins ?? []"
               :headers="headers"
               :search="search"
               :items-per-page="25"
               :loading="!state"
               ><template #item.actions="{ item }"
-                ><v-btn :to="'/plugins/' + item.id" variant="text">配置</v-btn
-                ><v-switch
+                ><UiButton :to="'/plugins/' + item.id" variant="text">配置</UiButton
+                ><UiCheck
                   :model-value="item.enabled"
                   @update:model-value="notifications.run(() => toggle(item))"
-                  :aria-label="item.name + ' 启用'"
-                  density="compact"
-                  hide-details /></template></v-data-table
+                  :aria-label="item.name + ' 启用'" /></template></UiDataTable
           ></template>
           <PluginInstallPage v-else-if="tab === 'install'" @changed="notifications.run(load)" />
           <PipelinePage v-else-if="tab === 'pipeline'" />
-          <PluginRuntimePage v-else @changed="notifications.run(load)" /> </v-card-text
-      ></v-card>
+          <PluginRuntimePage v-else @changed="notifications.run(load)" /></div
+      ></UiCard>
     </template>
   </div>
 </template>

@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiIcon from '@/ui/UiIcon.vue'
+import UiListItem from '@/ui/UiListItem.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { onMounted, ref } from 'vue'
 import { PluginEnvironmentSchema, type PluginEnvironment } from '@core/plugins/runtime/contracts'
 import { request } from '@/api/http'
@@ -44,27 +49,21 @@ onMounted(() => {
 })
 </script>
 <template>
-  <v-form @submit.prevent="notifications.run(() => operate())">
+  <form class="pi-form" @submit.prevent="notifications.run(() => operate())">
     <h2 class="text-h6 mb-4">插件运行环境</h2>
-    <v-text-field v-model="draft.image" label="Worker 镜像" /><v-text-field
+    <UiText v-model="draft.image" label="Worker 镜像" /><UiText
       v-model="draft.mountCommand"
       label="fuse2fs 路径"
       :hint="state?.suggestedMountCommand"
-      persistent-hint
-    /><v-switch v-model="draft.enabled" label="启用运行环境" />
-    <v-list
-      ><v-list-item
-        v-for="check in state?.checks"
-        :key="check.id"
-        :title="check.name"
-        :subtitle="check.detail"
+    /><UiCheck v-model="draft.enabled" label="启用运行环境" />
+    <div class="pi-list">
+      <UiListItem v-for="check in state?.checks" :key="check.id" :title="check.name" :subtitle="check.detail"
         ><template #prepend
-          ><v-icon v-if="check.ready" color="success">mdi-check-circle</v-icon
-          ><v-icon v-else color="warning">mdi-alert-circle</v-icon></template
-        ></v-list-item
-      ></v-list
-    >
-    <v-btn :loading="busy" class="mr-3" @click="notifications.run(() => operate(true))">检测环境</v-btn
-    ><v-btn variant="flat" :loading="busy" type="submit" color="primary">保存运行环境</v-btn>
-  </v-form>
+          ><UiIcon icon="mdi-check-circle" v-if="check.ready" color="success"></UiIcon
+          ><UiIcon icon="mdi-alert-circle" v-else color="warning"></UiIcon></template
+      ></UiListItem>
+    </div>
+    <UiButton :loading="busy" class="mr-3" @click="notifications.run(() => operate(true))">检测环境</UiButton
+    ><UiButton variant="flat" :loading="busy" type="submit" color="primary">保存运行环境</UiButton>
+  </form>
 </template>

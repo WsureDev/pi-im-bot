@@ -11,7 +11,7 @@ bun run build
 bun run start
 ```
 
-默认监听 `0.0.0.0:19335`，本机访问示例为 `http://localhost:19335`。局域网使用部署主机的可达地址直接访问。配置入口和生效方式见 [部署配置](docs/configuration.md)。前端采用独立 `dashboard/` 中的 Vue 3、Vuetify、Pinia、Vue Router 和 Vite，基于固定版本的 AstrBot Dashboard。服务启动只读取已构建的 `dist/`，首次运行前必须构建；`BOT_WEB_DIR` 可指定独立静态目录。
+默认监听 `0.0.0.0:19335`，本机访问示例为 `http://localhost:19335`。局域网使用部署主机的可达地址直接访问。配置入口和生效方式见 [部署配置](docs/configuration.md)。前端采用独立 `dashboard/` 中的 Vue 3、UI SDK、Pinia、Vue Router 和 Vite，配置表单与聊天沿用 AstrBot 的业务交互。服务启动只读取已构建的 `dist/`，首次运行前必须构建；`BOT_WEB_DIR` 可指定独立静态目录。
 
 开发时运行 `bun run dev` 同时启动后端和前端热更新；退出时共同关闭，任一服务退出也会停止另一服务。单独开发后端使用 `bun run dev:bot`，前端使用 `bun run dev:dashboard`。Vite 的 `/api` 和 WebSocket 默认代理到 `http://127.0.0.1:19335`，可用 `BOT_API_URL` 指向独立测试后端。构建、上游来源及迁移验收见 [Dashboard 说明](dashboard/README.md)。
 
@@ -311,7 +311,7 @@ src/runtime/     统一任务入口、并发、事件和交付
 src/scheduler/   持久计划与时间触发
 src/storage/     宿主状态；Pi 对话仍由 Pi 管理
 src/http/        工作台 API
-dashboard/      Vue / Vuetify 工作台、页面状态、API 适配、上游组件与独立锁文件
+dashboard/      Vue / UI SDK 工作台、页面状态、API 适配、上游组件与独立锁文件
 ```
 
 参考资料：

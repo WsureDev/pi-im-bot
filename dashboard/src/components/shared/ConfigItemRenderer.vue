@@ -1,6 +1,6 @@
 <template>
   <div class="w-100" :inert="Boolean(itemMeta?.readonly)">
-    <v-text-field
+    <UiText
       v-if="itemMeta?.secret && itemMeta.type !== 'list'"
       :model-value="inputValue"
       @update:model-value="emitUpdate"
@@ -9,12 +9,9 @@
       @click:append-inner="secretVisible = !secretVisible"
       autocomplete="new-password"
       clearable
-      density="compact"
-      variant="outlined"
       class="config-field"
       :disabled="itemMeta.readonly"
       :aria-label="itemMeta.description || configKey"
-      hide-details
     />
     <ConfigFileItem
       v-else-if="itemMeta?.type === 'file'"
@@ -34,7 +31,8 @@
       v-else-if="itemMeta?.type === 'list' && itemMeta?.options && itemMeta?.render_type === 'checkbox'"
       class="checkbox-group d-flex flex-wrap"
     >
-      <v-checkbox
+      <UiCheck
+        checkbox
         v-for="(option, optionIndex) in itemMeta.options"
         :key="optionIndex"
         :model-value="inputValue"
@@ -42,13 +40,11 @@
         :label="getLabel(itemMeta, optionIndex, option)"
         :value="option"
         class="config-checkbox"
-        color="primary"
-        density="compact"
-        hide-details
-      ></v-checkbox>
+      ></UiCheck>
     </div>
 
-    <v-autocomplete
+    <UiChoice
+      searchable
       v-else-if="itemMeta?.type === 'list' && itemMeta?.options"
       :model-value="inputValue"
       @update:model-value="
@@ -61,35 +57,29 @@
       :items="listSelectItems"
       item-title="title"
       item-value="value"
-      density="compact"
-      variant="outlined"
       class="config-field"
       :disabled="itemMeta?.readonly"
       :aria-label="itemMeta?.description || configKey"
-      hide-details
-      chips
       multiple
-    ></v-autocomplete>
+    ></UiChoice>
 
-    <v-autocomplete
+    <UiChoice
+      searchable
       v-else-if="itemMeta?.options"
       :model-value="inputValue"
       @update:model-value="emitUpdate"
       :items="getSelectItems(itemMeta)"
-      density="compact"
-      variant="outlined"
       class="config-field"
       :disabled="itemMeta?.readonly"
       :aria-label="itemMeta?.description || configKey"
-      hide-details
-    ></v-autocomplete>
+    ></UiChoice>
 
     <div v-else-if="itemMeta?.editor_mode" class="editor-container">
-      <v-sheet color="surface-variant" class="editor-toolbar">
-        <v-chip size="x-small" color="primary" variant="tonal">{{ editorLanguage }}</v-chip>
+      <div class="pi-sheet editor-toolbar">
+        <UiChip size="x-small" color="primary">{{ editorLanguage }}</UiChip>
         <span class="text-caption text-medium-emphasis">直接编辑内容</span>
-        <v-spacer />
-        <v-btn
+        <span class="pi-spacer" />
+        <UiButton
           v-if="showFullscreenBtn"
           size="small"
           variant="text"
@@ -97,10 +87,10 @@
           prepend-icon="mdi-fullscreen"
           @click="$emit('open-fullscreen')"
           :aria-label="(itemMeta?.description || configKey) + ' · 全屏编辑'"
-          >全屏编辑</v-btn
+          >全屏编辑</UiButton
         >
-      </v-sheet>
-      <v-lazy class="editor-viewport" :min-height="280" :options="{ threshold: 0 }" :transition="false">
+      </div>
+      <UiLazy class="editor-viewport" :min-height="280" :options="{ threshold: 0 }">
         <Suspense>
           <VueMonacoEditor
             width="100%"
@@ -120,18 +110,14 @@
             @update:value="emitUpdate"
           />
           <template #fallback
-            ><v-sheet color="inputBg" height="280" class="d-flex align-center justify-center"
-              ><v-progress-circular
-                indeterminate
-                color="primary"
-                size="28"
-                aria-label="加载编辑器" /></v-sheet
+            ><div height="280" class="pi-sheet d-flex align-center justify-center">
+              <span class="pi-spinner" size="28" aria-label="加载编辑器" /></div
           ></template>
         </Suspense>
-      </v-lazy>
+      </UiLazy>
     </div>
 
-    <v-text-field
+    <UiText
       v-else-if="itemMeta?.type === 'string'"
       :model-value="inputValue"
       @update:model-value="emitUpdate"
@@ -140,16 +126,13 @@
       :append-inner-icon="secretToggleIcon"
       :autocomplete="itemMeta?.secret ? 'new-password' : undefined"
       @click:append-inner="secretVisible = !secretVisible"
-      density="compact"
-      variant="outlined"
       class="config-field"
       :disabled="itemMeta?.readonly"
       :aria-label="itemMeta?.description || configKey"
-      hide-details
-    ></v-text-field>
+    ></UiText>
 
     <div v-else-if="itemMeta?.type === 'int' || itemMeta?.type === 'float'" class="d-flex align-center gap-3">
-      <v-slider
+      <UiSlider
         :disabled="itemMeta?.readonly"
         :aria-label="(itemMeta?.description || configKey) + '滑块'"
         v-if="itemMeta?.slider"
@@ -164,12 +147,9 @@
         :min="itemMeta?.slider?.min ?? 0"
         :max="itemMeta?.slider?.max ?? 100"
         :step="itemMeta?.slider?.step ?? 1"
-        color="primary"
-        density="compact"
-        hide-details
         style="flex: 1"
-      ></v-slider>
-      <v-text-field
+      ></UiSlider>
+      <UiText
         :model-value="numericTemp ?? modelValue"
         @update:model-value="(val) => (numericTemp = val)"
         @blur="
@@ -180,8 +160,6 @@
             numericTemp = null
           }
         "
-        density="compact"
-        variant="outlined"
         class="config-field"
         :min="itemMeta?.min ?? itemMeta?.slider?.min"
         :max="itemMeta?.max ?? itemMeta?.slider?.max"
@@ -189,34 +167,28 @@
         :disabled="itemMeta?.readonly"
         :aria-label="itemMeta?.description || configKey"
         type="number"
-        hide-details
         style="flex: 1"
-      ></v-text-field>
+      ></UiText>
     </div>
 
-    <v-textarea
+    <UiText
+      multiline
       v-else-if="itemMeta?.type === 'text'"
       :model-value="inputValue"
       @update:model-value="emitUpdate"
-      variant="outlined"
       rows="3"
       class="config-field"
       :disabled="itemMeta?.readonly"
       :aria-label="itemMeta?.description || configKey"
-      hide-details
-    ></v-textarea>
+    ></UiText>
 
-    <v-switch
+    <UiCheck
       v-else-if="itemMeta?.type === 'bool'"
       :model-value="inputValue"
       @update:model-value="emitUpdate"
-      color="primary"
-      inset
-      density="compact"
       :disabled="itemMeta?.readonly"
       :aria-label="itemMeta?.description || configKey"
-      hide-details
-    ></v-switch>
+    ></UiCheck>
 
     <ListConfigItem
       v-else-if="itemMeta?.type === 'list'"
@@ -237,7 +209,7 @@
       class="config-field"
     />
 
-    <v-text-field
+    <UiText
       v-else
       :model-value="inputValue"
       @update:model-value="emitUpdate"
@@ -246,23 +218,27 @@
       :append-inner-icon="secretToggleIcon"
       :autocomplete="itemMeta?.secret ? 'new-password' : undefined"
       @click:append-inner="secretVisible = !secretVisible"
-      density="compact"
-      variant="outlined"
       class="config-field"
       :disabled="itemMeta?.readonly"
       :aria-label="itemMeta?.description || configKey"
-      hide-details
-    ></v-text-field>
+    ></UiText>
   </div>
 </template>
 
 <script setup>
+import UiButton from '@/ui/UiButton.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiLazy from '@/ui/UiLazy.vue'
+import UiSlider from '@/ui/fields/UiSlider.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { VueMonacoEditor } from '@/composables/monaco'
 import ListConfigItem from './ListConfigItem.vue'
 import ConfigFileItem from './ConfigFileItem.vue'
 import ObjectEditor from './ObjectEditor.vue'
 import { computed, ref, inject, watch } from 'vue'
-import { useTheme } from 'vuetify'
+import { useAppearance } from '@/ui/appearance'
 import { ConfigurationKey } from '@/api/plugin-configuration'
 import { useI18n, useModuleI18n } from '@/i18n/composables'
 import { usePluginI18n } from '@/utils/pluginI18n'
@@ -288,12 +264,12 @@ watch(
   }
 )
 const numericTemp = ref(null)
-const theme = useTheme()
+const theme = useAppearance()
 const editorTheme = computed(() => {
   if (props.itemMeta?.editor_theme) {
     return props.itemMeta.editor_theme
   }
-  if (theme.global.current.value.dark) {
+  if (theme.dark.value) {
     return 'vs-dark'
   }
   return 'vs-light'
@@ -434,7 +410,7 @@ function getSelectItems(itemMeta) {
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid rgb(var(--v-theme-borderLight));
+  border: 1px solid rgb(var(--pi-borderLight));
   border-radius: 10px;
 }
 .editor-toolbar {
@@ -459,24 +435,24 @@ function getSelectItems(itemMeta) {
   margin-right: 0;
 }
 
-.config-checkbox :deep(.v-selection-control) {
+.config-checkbox :deep(.pi-fieldion-control) {
   min-height: 28px;
 }
 
-.config-checkbox :deep(.v-selection-control__wrapper) {
+.config-checkbox :deep(.pi-fieldion-control__wrapper) {
   width: 18px;
   height: 18px;
 }
 
-.config-checkbox :deep(.v-icon) {
+.config-checkbox :deep(.pi-icon) {
   font-size: 18px;
 }
 
-.config-checkbox :deep(.v-label) {
+.config-checkbox :deep(label) {
   font-size: 0.9rem;
 }
 
-:deep(.v-field__input) {
+:deep(input) {
   font-size: 14px;
 }
 

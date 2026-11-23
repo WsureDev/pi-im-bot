@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UiChoice from '@/ui/fields/UiChoice.vue'
 import { onMounted } from 'vue'
 import { useControl } from './store'
 import { useNotifications } from '@/stores/notifications'
@@ -19,15 +20,13 @@ onMounted(() => {
         修改应用到所选范围；当前对话若有覆盖，仍遵循原有继承规则。
       </p>
     </div>
-    <v-select
+    <UiChoice
       :model-value="control.scopeId"
       :items="control.snapshot?.scopes"
       item-title="name"
       item-value="id"
       label="配置范围"
       aria-label="配置范围"
-      hide-details
-      density="compact"
       :disabled="control.loading || props.disabled"
       @update:model-value="notices.run(() => control.selectScope($event))"
     />
@@ -40,11 +39,11 @@ onMounted(() => {
   gap: 20px;
   justify-content: space-between;
   padding: 16px;
-  border: 1px solid rgba(var(--v-theme-primary), 0.2);
+  border: 1px solid rgba(var(--pi-primary), 0.2);
   border-radius: 12px;
-  background: rgba(var(--v-theme-primary), 0.04);
+  background: rgba(var(--pi-primary), 0.04);
 }
-.control-scope .v-select {
+.control-scope .pi-field {
   max-width: 300px;
   min-width: 220px;
 }
@@ -53,7 +52,7 @@ onMounted(() => {
     flex-direction: column;
     align-items: stretch;
   }
-  .control-scope .v-select {
+  .control-scope .pi-field {
     max-width: 100%;
   }
 }

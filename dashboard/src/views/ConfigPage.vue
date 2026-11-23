@@ -1,4 +1,16 @@
 <script setup lang="ts">
+import UiAccordion from '@/ui/UiAccordion.vue'
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiCol from '@/ui/UiCol.vue'
+import UiDisclosure from '@/ui/UiDisclosure.vue'
+import UiHeading from '@/ui/UiHeading.vue'
+import UiIcon from '@/ui/UiIcon.vue'
+import UiListItem from '@/ui/UiListItem.vue'
+import UiTableFrame from '@/ui/table/UiTableFrame.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { computed, nextTick, onMounted, onBeforeUnmount, provide, ref, toRaw, watch } from 'vue'
 import {
   FrameworkEditorSchema,
@@ -346,59 +358,55 @@ onMounted(() => {
       </div>
     </header>
     <div ref="toolbar" class="settings-toolbar">
-      <v-card class="settings-toolbar-card" elevation="2">
-        <v-card-text class="settings-toolbar-content">
-          <v-select
+      <UiCard class="settings-toolbar-card">
+        <div class="pi-section settings-toolbar-content">
+          <UiChoice
             :model-value="target"
             @update:model-value="notifications.run(() => load($event))"
             :items="targets"
             label="设置范围"
             :disabled="busy"
             aria-label="设置范围"
-            hide-details
             class="scope-select"
           />
           <div class="settings-toolbar-actions">
-            <v-chip v-if="changes.dirty.value" color="warning" size="small" variant="tonal"
-              >有未保存的设置</v-chip
-            >
-            <v-btn
+            <UiChip v-if="changes.dirty.value" color="warning" size="small">有未保存的设置</UiChip>
+            <UiButton
               variant="text"
               prepend-icon="mdi-refresh"
               :disabled="busy"
               @click="notifications.run(() => load())"
-              >刷新</v-btn
+              >刷新</UiButton
             >
-            <v-btn
+            <UiButton
               color="primary"
               variant="flat"
               prepend-icon="mdi-content-save"
               :loading="busy"
               @click="notifications.run(save)"
-              >保存设置</v-btn
+              >保存设置</UiButton
             >
           </div>
-        </v-card-text>
-        <v-progress-linear v-if="busy" indeterminate color="primary" />
-      </v-card>
+        </div>
+        <progress class="pi-progress" v-if="busy" />
+      </UiCard>
     </div>
     <div class="settings-workspace">
       <nav class="settings-navigation" aria-label="设置分组导航">
         <div class="text-overline text-medium-emphasis px-3 mb-2">配置分组</div>
-        <v-list nav density="compact" bg-color="transparent">
-          <v-list-item
+        <div class="pi-list">
+          <UiListItem
             v-for="item in navigation"
             :key="item.key"
             :title="item.title"
             :prepend-icon="item.icon"
             :active="activeSection === item.key"
-            color="primary"
             @click="jumpToSection(item.key)"
           />
-        </v-list>
+        </div>
       </nav>
       <div class="settings-main">
-        <v-select
+        <UiChoice
           class="settings-mobile-navigation"
           :model-value="activeSection"
           @update:model-value="jumpToSection($event)"
@@ -407,28 +415,26 @@ onMounted(() => {
           item-value="key"
           label="跳转到配置分组"
           aria-label="跳转到配置分组"
-          hide-details
         />
         <template v-if="configView">
-          <v-card
+          <UiCard
             v-for="section in sections"
             :key="section.key"
             :id="'settings-' + section.key"
             class="settings-section-card"
             :class="{ 'settings-section-card--single': section.single }"
           >
-            <v-card-item class="settings-section-heading">
+            <UiHeading class="settings-section-heading">
               <template #prepend
-                ><v-avatar color="primary" variant="tonal" rounded="lg" size="36"
-                  ><v-icon :icon="section.icon" size="20" /></v-avatar
+                ><span class="pi-avatar"><UiIcon :icon="section.icon" size="20" /></span
               ></template>
-              <v-card-title
-                ><h2 class="text-subtitle-1 font-weight-bold">{{ section.heading }}</h2></v-card-title
-              >
-              <v-card-subtitle v-if="section.hint">{{ section.hint }}</v-card-subtitle>
-            </v-card-item>
-            <v-divider />
-            <v-card-text :inert="busy" class="settings-section-fields">
+              <div class="pi-card-title">
+                <h2 class="text-subtitle-1 font-weight-bold">{{ section.heading }}</h2>
+              </div>
+              <p class="pi-subtitle" v-if="section.hint">{{ section.hint }}</p>
+            </UiHeading>
+            <hr class="pi-divider" />
+            <div :inert="busy" class="pi-section settings-section-fields">
               <AstrBotConfig
                 :metadata="section.metadata"
                 metadata-key="settings"
@@ -437,68 +443,58 @@ onMounted(() => {
                 :disabled="busy"
                 flat-objects
               />
-            </v-card-text>
-          </v-card>
+            </div>
+          </UiCard>
         </template>
-        <v-card id="settings-personae" class="settings-section-card">
-          <v-card-item class="settings-section-heading">
+        <UiCard id="settings-personae" class="settings-section-card">
+          <UiHeading class="settings-section-heading">
             <template #prepend
-              ><v-avatar color="primary" variant="tonal" rounded="lg" size="36"
-                ><v-icon icon="mdi-account-edit-outline" size="20" /></v-avatar
+              ><span class="pi-avatar"><UiIcon icon="mdi-account-edit-outline" size="20" /></span
             ></template>
-            <v-card-title><h2 class="text-subtitle-1 font-weight-bold">人格库</h2></v-card-title>
-            <v-card-subtitle>人格可供不同范围选择；在这里编辑名称与提示词。</v-card-subtitle>
-          </v-card-item>
-          <v-divider />
-          <v-card-text :inert="busy">
-            <v-sheet
-              v-for="(persona, index) in personae"
-              :key="index"
-              class="persona-editor"
-              rounded="lg"
-              border
-              color="inputBg"
-            >
+            <div class="pi-card-title"><h2 class="text-subtitle-1 font-weight-bold">人格库</h2></div>
+            <p class="pi-subtitle">人格可供不同范围选择；在这里编辑名称与提示词。</p>
+          </UiHeading>
+          <hr class="pi-divider" />
+          <div class="pi-section" :inert="busy">
+            <div v-for="(persona, index) in personae" :key="index" class="pi-sheet persona-editor">
               <div class="d-flex align-center justify-space-between mb-4">
                 <h3 class="text-subtitle-2">{{ persona.name || '新建人格' }}</h3>
-                <v-btn
+                <UiButton
                   color="error"
                   variant="text"
                   size="small"
                   prepend-icon="mdi-delete-outline"
                   @click="personae.splice(index, 1)"
-                  >删除人格</v-btn
+                  >删除人格</UiButton
                 >
               </div>
-              <v-row
-                ><v-col cols="12" sm="6"
-                  ><v-text-field v-model="persona.id" label="人格 ID" hide-details /></v-col
-                ><v-col cols="12" sm="6"
-                  ><v-text-field v-model="persona.name" label="名称" hide-details /></v-col
-              ></v-row>
-              <v-textarea v-model="persona.prompt" label="人格提示词" rows="6" class="mt-5" hide-details />
-            </v-sheet>
-            <v-alert v-if="!personae.length" type="info" variant="tonal"
-              >添加一个人格后即可填写提示词。</v-alert
-            >
-          </v-card-text>
-          <v-card-actions class="pa-4"
-            ><v-btn
+              <div class="pi-row">
+                <UiCol cols="12" sm="6"><UiText v-model="persona.id" label="人格 ID" /></UiCol
+                ><UiCol cols="12" sm="6"><UiText v-model="persona.name" label="名称" /></UiCol>
+              </div>
+              <UiText multiline v-model="persona.prompt" label="人格提示词" rows="6" class="mt-5" />
+            </div>
+            <div class="pi-alert" v-if="!personae.length" data-tone="info">
+              添加一个人格后即可填写提示词。
+            </div>
+          </div>
+          <footer class="pi-actions pa-4">
+            <UiButton
               variant="tonal"
               prepend-icon="mdi-plus"
               :disabled="busy"
               @click="personae.push({ id: '', name: '', prompt: '' })"
-              >新增人格</v-btn
-            ><v-spacer /><v-chip v-if="personaChanges.dirty.value" color="warning" size="small"
-              >人格有未保存的修改</v-chip
-            ><v-btn color="primary" variant="flat" :loading="busy" @click="notifications.run(savePersonas)"
-              >保存人格库</v-btn
-            ></v-card-actions
-          >
-        </v-card>
-        <v-card v-if="detail" id="settings-effective" class="settings-section-card" title="最终生效值与来源">
-          <v-card-text
-            ><v-table density="comfortable"
+              >新增人格</UiButton
+            ><span class="pi-spacer" /><UiChip v-if="personaChanges.dirty.value" color="warning" size="small"
+              >人格有未保存的修改</UiChip
+            ><UiButton color="primary" variant="flat" :loading="busy" @click="notifications.run(savePersonas)"
+              >保存人格库</UiButton
+            >
+          </footer>
+        </UiCard>
+        <UiCard v-if="detail" id="settings-effective" class="settings-section-card" title="最终生效值与来源">
+          <div class="pi-section">
+            <UiTableFrame
               ><thead>
                 <tr>
                   <th>设置项</th>
@@ -510,17 +506,17 @@ onMounted(() => {
                   <td>{{ key }}</td>
                   <td>{{ source }}</td>
                 </tr>
-              </tbody></v-table
+              </tbody></UiTableFrame
             >
-            <v-expansion-panels class="mt-4" variant="accordion"
-              ><v-expansion-panel title="查看原始生效数据"
-                ><v-expansion-panel-text>
+            <UiAccordion class="mt-4"
+              ><UiDisclosure title="查看原始生效数据"
+                ><div class="pi-disclosure-body">
                   <pre>{{ JSON.stringify(detail.effective, null, 2) }}</pre>
-                </v-expansion-panel-text></v-expansion-panel
-              ></v-expansion-panels
+                </div></UiDisclosure
+              ></UiAccordion
             >
-          </v-card-text>
-        </v-card>
+          </div>
+        </UiCard>
       </div>
     </div>
   </div>
@@ -533,7 +529,7 @@ onMounted(() => {
 }
 .settings-heading {
   padding: 8px 0 24px;
-  color: rgb(var(--v-theme-primaryText));
+  color: rgb(var(--pi-primaryText));
 }
 .settings-toolbar {
   position: sticky;
@@ -581,7 +577,7 @@ onMounted(() => {
   overflow: hidden;
 }
 .settings-section-heading {
-  background: rgba(var(--v-theme-primary), 0.035);
+  background: rgba(var(--pi-primary), 0.035);
   padding: 18px 20px;
 }
 .settings-section-fields {
@@ -593,7 +589,7 @@ onMounted(() => {
 .settings-section-card--single :deep(.config-row--editor) {
   padding-top: 8px;
 }
-.settings-main :deep(.property-info .v-list-item) {
+.settings-main :deep(.property-info .pi-list-item) {
   padding-left: 0;
 }
 .persona-editor {

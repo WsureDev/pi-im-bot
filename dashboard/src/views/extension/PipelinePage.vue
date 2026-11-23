@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import UiAccordion from '@/ui/UiAccordion.vue'
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiCol from '@/ui/UiCol.vue'
+import UiDisclosure from '@/ui/UiDisclosure.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { computed, onMounted, ref } from 'vue'
 import { z } from 'zod'
 import { PipelineViewSchema } from '@core/plugins/pipeline/contracts'
@@ -48,29 +55,27 @@ onMounted(() => {
 })
 </script>
 <template>
-  <v-alert v-if="!nodes.length" type="info" variant="tonal"
-    >此插件通过指令或工具调用，不参与自动流程。</v-alert
-  >
+  <div class="pi-alert" v-if="!nodes.length" data-tone="info">此插件通过指令或工具调用，不参与自动流程。</div>
   <div class="pipeline-groups">
-    <v-card v-for="node in nodes" :key="node.id" :title="node.title" :subtitle="node.summary" class="mb-4"
-      ><v-card-text>
+    <UiCard v-for="node in nodes" :key="node.id" :title="node.title" :subtitle="node.summary" class="mb-4"
+      ><div class="pi-section">
         <p class="mb-4">{{ node.flow }}</p>
-        <v-row
+        <div
+          class="pi-row"
           v-for="handler in node.handlers.filter((entry) => !pluginId || entry.pluginId === pluginId)"
           :key="handler.key"
         >
-          <v-col cols="12" md="6"
-            ><v-switch
+          <UiCol cols="12" md="6"
+            ><UiCheck
               :model-value="!(edits[handler.key]?.disabled ?? !handler.enabled)"
               @update:model-value="
                 change(handler.key, edits[handler.key]?.priority ?? handler.priority, Boolean($event))
               "
               :label="handler.pluginName + ' · ' + handler.key"
               :hint="availabilityHint(handler.available)"
-              persistent-hint
-          /></v-col>
-          <v-col cols="12" md="6"
-            ><v-text-field
+          /></UiCol>
+          <UiCol cols="12" md="6"
+            ><UiText
               :model-value="edits[handler.key]?.priority ?? handler.priority"
               @update:model-value="
                 change(handler.key, Number($event), !(edits[handler.key]?.disabled ?? !handler.enabled))
@@ -79,25 +84,25 @@ onMounted(() => {
               label="优先级"
               min="-100000"
               max="100000"
-          /></v-col>
-        </v-row>
-        <v-expansion-panels
-          ><v-expansion-panel title="数据契约"
-            ><v-expansion-panel-text
-              ><p>可修改字段：{{ node.writable.join('、') }}</p>
+          /></UiCol>
+        </div>
+        <UiAccordion
+          ><UiDisclosure title="数据契约"
+            ><div class="pi-disclosure-body">
+              <p>可修改字段：{{ node.writable.join('、') }}</p>
               <pre>{{ JSON.stringify({ input: node.input, output: node.output }, null, 2) }}</pre>
-            </v-expansion-panel-text></v-expansion-panel
-          ></v-expansion-panels
+            </div></UiDisclosure
+          ></UiAccordion
         >
-      </v-card-text></v-card
+      </div></UiCard
     >
   </div>
-  <v-btn
+  <UiButton
     variant="flat"
     class="mt-4"
     color="primary"
     :disabled="!changes.dirty.value"
     @click="notifications.run(save)"
-    >保存编排</v-btn
+    >保存编排</UiButton
   >
 </template>

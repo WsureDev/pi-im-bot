@@ -1,32 +1,35 @@
 <template>
-  <v-dialog v-model="isOpen" max-width="480" persistent>
-    <v-card>
-      <v-card-title class="text-h3 pa-4 pb-0 pl-6 d-flex align-center justify-space-between">
+  <UiDialog v-model="isOpen" :label="title" max-width="480" persistent>
+    <UiCard>
+      <div class="pi-card-title text-h3 pa-4 pb-0 pl-6 d-flex align-center justify-space-between">
         <span>{{ title }}</span>
-        <v-btn icon="mdi-close" variant="text" @click="handleClose"></v-btn>
-      </v-card-title>
-      <v-card-text>
+        <UiButton aria-label="继续编辑" icon="mdi-close" variant="text" @click="handleClose"></UiButton>
+      </div>
+      <div class="pi-section">
         <div class="message-text">{{ message }}</div>
         <div class="action-hints">
           <span class="hint-item">{{ confirmHint }}</span>
           <span class="hint-item">{{ cancelHint }}</span>
           <span class="hint-item">{{ closeHint }}</span>
         </div>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer></v-spacer>
-        <v-btn color="gray" variant="text" @click="handleCancel">{{
+      </div>
+      <footer class="pi-actions">
+        <span class="pi-spacer"></span>
+        <UiButton color="gray" variant="text" @click="handleCancel">{{
           t('core.common.dialog.cancelButton')
-        }}</v-btn>
-        <v-btn color="red" variant="tonal" @click="handleConfirm" class="confirm-button">{{
+        }}</UiButton>
+        <UiButton color="red" variant="tonal" @click="handleConfirm" class="confirm-button">{{
           t('core.common.dialog.confirmButton')
-        }}</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        }}</UiButton>
+      </footer>
+    </UiCard>
+  </UiDialog>
 </template>
 
 <script setup>
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiDialog from '@/ui/UiDialog.vue'
 import { ref } from 'vue'
 import { useI18n } from '@/i18n/composables'
 
@@ -85,7 +88,7 @@ defineExpose({ open })
 }
 
 .hint-item {
-  color: var(--v-theme-secondaryText, #666);
+  color: rgb(var(--pi-secondaryText));
   font-size: 12px;
   opacity: 0.7;
 }

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiDialog from '@/ui/UiDialog.vue'
 import { computed, onMounted, provide, ref, toRaw } from 'vue'
 import { ResourceConfigurationSchema } from '@demo/contracts/resources'
 import type { z } from 'zod'
@@ -102,21 +106,24 @@ async function refresh() {
 onMounted(load)
 </script>
 <template>
-  <v-dialog :model-value="true" persistent max-width="780" scrollable>
-    <v-card>
-      <v-card-title class="d-flex align-center"
-        ><span>{{ view?.title ?? '加载配置' }}</span
-        ><v-spacer /><v-btn icon="mdi-close" variant="text" aria-label="关闭资源配置" @click="close"
-      /></v-card-title>
-      <v-card-subtitle>由 Provider 插件的声明生成配置表单 · {{ subjectId }}</v-card-subtitle>
-      <v-progress-linear v-if="busy" indeterminate />
-      <v-card-text>
-        <v-alert v-if="error" type="error" variant="tonal" class="mb-4"
-          >{{ error }} 草稿保留在当前窗口。</v-alert
-        >
-        <v-alert type="info" variant="tonal" class="mb-4"
-          >此预览只使用本地模拟发现与执行。填写的地址不会连接到外部服务。</v-alert
-        >
+  <UiDialog :model-value="true" persistent max-width="780">
+    <UiCard>
+      <div class="pi-card-title d-flex align-center">
+        <span>{{ view?.title ?? '加载配置' }}</span
+        ><span class="pi-spacer" /><UiButton
+          icon="mdi-close"
+          variant="text"
+          aria-label="关闭资源配置"
+          @click="close"
+        />
+      </div>
+      <p class="pi-subtitle">由 Provider 插件的声明生成配置表单 · {{ subjectId }}</p>
+      <progress class="pi-progress" v-if="busy" />
+      <div class="pi-section">
+        <div v-if="error" data-tone="error" class="pi-alert mb-4">{{ error }} 草稿保留在当前窗口。</div>
+        <div data-tone="info" class="pi-alert mb-4">
+          此预览只使用本地模拟发现与执行。填写的地址不会连接到外部服务。
+        </div>
         <AstrBotConfig
           v-if="view"
           :metadata="metadata"
@@ -126,16 +133,15 @@ onMounted(load)
           :enable-default-reset="true"
           :disabled="busy"
         />
-      </v-card-text>
-      <v-card-actions
-        ><v-chip v-if="changes.dirty.value" size="small" color="warning">未保存</v-chip><v-spacer /><v-btn
-          @click="refresh"
-          >刷新</v-btn
-        ><v-btn @click="close">关闭</v-btn
-        ><v-btn color="primary" variant="flat" :loading="busy" :disabled="!view" @click="save"
-          >保存配置</v-btn
-        ></v-card-actions
-      >
-    </v-card>
-  </v-dialog>
+      </div>
+      <footer class="pi-actions">
+        <UiChip v-if="changes.dirty.value" size="small" color="warning">未保存</UiChip
+        ><span class="pi-spacer" /><UiButton @click="refresh">刷新</UiButton
+        ><UiButton @click="close">关闭</UiButton
+        ><UiButton color="primary" variant="flat" :loading="busy" :disabled="!view" @click="save"
+          >保存配置</UiButton
+        >
+      </footer>
+    </UiCard>
+  </UiDialog>
 </template>

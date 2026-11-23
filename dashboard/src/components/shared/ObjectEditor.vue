@@ -3,123 +3,98 @@
     <div>
       <span
         v-if="!modelValue || Object.keys(modelValue).length === 0"
-        style="color: rgb(var(--v-theme-primaryText))"
+        style="color: rgb(var(--pi-primaryText))"
       >
         {{ t('core.common.objectEditor.noItems') }}
       </span>
       <div v-else class="d-flex flex-wrap ga-2">
-        <v-chip v-for="key in displayKeys" :key="key" size="x-small" label color="primary">
+        <UiChip v-for="key in displayKeys" :key="key" size="x-small" color="primary">
           {{ key.length > 20 ? key.slice(0, 20) + '...' : key }}
-        </v-chip>
-        <v-chip
-          v-if="Object.keys(modelValue).length > maxDisplayItems"
-          size="x-small"
-          label
-          color="grey-lighten-1"
-        >
+        </UiChip>
+        <UiChip v-if="Object.keys(modelValue).length > maxDisplayItems" size="x-small" color="grey-lighten-1">
           +{{ Object.keys(modelValue).length - maxDisplayItems }}
-        </v-chip>
+        </UiChip>
       </div>
     </div>
-    <v-btn size="small" color="primary" variant="tonal" @click="openDialog">
+    <UiButton size="small" color="primary" variant="tonal" @click="openDialog">
       {{ resolveButtonText }}
-    </v-btn>
+    </UiButton>
   </div>
 
   <!-- Key-Value Management Dialog -->
-  <v-dialog persistent v-model="dialog" max-width="600px">
-    <v-card>
-      <v-card-title class="text-h3 pa-4 pb-0 pl-6">
+  <UiDialog persistent v-model="dialog" max-width="600px">
+    <UiCard>
+      <div class="pi-card-title text-h3 pa-4 pb-0 pl-6">
         {{ resolveDialogTitle }}
-      </v-card-title>
+      </div>
 
-      <v-card-text class="pa-4" style="max-height: 400px; overflow-y: auto">
+      <div class="pi-section pa-4" style="max-height: 400px; overflow-y: auto">
         <!-- Regular key-value pairs (non-template) -->
         <div v-if="nonTemplatePairs.length > 0">
           <div v-for="pair in nonTemplatePairs" :key="pair._id" class="key-value-pair">
-            <v-row no-gutters align="center" class="mb-2">
-              <v-col cols="4">
-                <v-text-field
+            <div class="pi-row mb-2">
+              <UiCol cols="4">
+                <UiText
                   v-model="pair.key"
-                  density="compact"
-                  variant="outlined"
-                  hide-details
                   :placeholder="t('core.common.objectEditor.placeholders.keyName')"
                   @focus="pair._originalKey = pair.key"
                   @blur="onKeyBlur(pair)"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="7" class="pl-2 d-flex align-center justify-end">
-                <v-text-field
+                ></UiText>
+              </UiCol>
+              <UiCol cols="7" class="pl-2 d-flex align-center justify-end">
+                <UiText
                   v-if="pair.type === 'string'"
                   v-model="pair.value"
-                  density="compact"
-                  variant="outlined"
-                  hide-details
                   :placeholder="t('core.common.objectEditor.placeholders.stringValue')"
-                ></v-text-field>
+                ></UiText>
                 <div
                   v-else-if="pair.type === 'number' || pair.type === 'float' || pair.type === 'int'"
                   class="d-flex align-center gap-2 flex-grow-1"
                 >
-                  <v-slider
+                  <UiSlider
                     v-if="pair.slider"
                     :model-value="Number(pair.value) || 0"
                     @update:model-value="pair.value = $event"
                     :min="pair.slider.min"
                     :max="pair.slider.max"
                     :step="pair.slider.step"
-                    color="primary"
-                    density="compact"
-                    hide-details
                     class="flex-grow-1"
-                  ></v-slider>
-                  <v-text-field
+                  ></UiSlider>
+                  <UiText
                     v-model.number="pair.value"
                     type="number"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :placeholder="t('core.common.objectEditor.placeholders.numberValue')"
                     :style="pair.slider ? 'max-width: 120px;' : ''"
-                  ></v-text-field>
+                  ></UiText>
                 </div>
-                <v-switch
-                  v-else-if="pair.type === 'boolean'"
-                  v-model="pair.value"
-                  density="compact"
-                  hide-details
-                  color="primary"
-                ></v-switch>
-                <v-text-field
+                <UiCheck v-else-if="pair.type === 'boolean'" v-model="pair.value"></UiCheck>
+                <UiText
                   v-if="pair.type === 'json'"
                   v-model="pair.value"
-                  density="compact"
-                  variant="outlined"
-                  hide-details="auto"
                   :placeholder="t('core.common.objectEditor.placeholders.jsonValue')"
                   @blur="validateJSON(pair)"
                   :error-messages="pair.jsonError"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="1" class="pl-2">
-                <v-btn
+                ></UiText>
+              </UiCol>
+              <UiCol cols="1" class="pl-2">
+                <UiButton
                   icon
                   variant="text"
                   size="small"
                   color="error"
+                  :aria-label="'删除 ' + pair.key"
                   @click="removeKeyValuePairByKey(pair.key)"
                 >
-                  <v-icon>mdi-delete</v-icon>
-                </v-btn>
-              </v-col>
-            </v-row>
+                  <UiIcon icon="mdi-delete"></UiIcon>
+                </UiButton>
+              </UiCol>
+            </div>
           </div>
         </div>
 
         <!-- Template schema fields -->
         <div v-if="hasTemplateSchema" class="mt-4">
-          <v-divider class="mb-3"></v-divider>
+          <hr class="pi-divider mb-3" />
           <div class="text-caption text-grey mb-2">{{ t('core.common.objectEditor.presets') }}</div>
           <div
             v-for="(template, templateKey) in templateSchema"
@@ -127,8 +102,8 @@
             class="template-field"
             :class="{ 'template-field-inactive': !isTemplateKeyAdded(templateKey) }"
           >
-            <v-row no-gutters align="center" class="mb-2">
-              <v-col cols="4">
+            <div class="pi-row mb-2">
+              <UiCol cols="4">
                 <div class="d-flex flex-column">
                   <span class="text-caption font-weight-medium">{{
                     getTemplateTitle(template, templateKey)
@@ -137,114 +112,109 @@
                     resolveTemplateText(templateKey, 'hint', template.hint)
                   }}</span>
                 </div>
-              </v-col>
-              <v-col cols="7" class="pl-2 d-flex align-center justify-end">
-                <v-text-field
+              </UiCol>
+              <UiCol cols="7" class="pl-2 d-flex align-center justify-end">
+                <UiText
                   v-if="template.type === 'string'"
                   :model-value="getTemplateValue(templateKey)"
                   @update:model-value="updateTemplateValue(templateKey, $event)"
-                  density="compact"
-                  variant="outlined"
-                  hide-details
                   :placeholder="t('core.common.objectEditor.placeholders.stringValue')"
-                ></v-text-field>
+                ></UiText>
                 <div
                   v-else-if="
                     template.type === 'number' || template.type === 'float' || template.type === 'int'
                   "
                   class="d-flex align-center ga-4 flex-grow-1"
                 >
-                  <v-slider
+                  <UiSlider
                     v-if="template.slider"
                     :model-value="Number(getTemplateValue(templateKey)) || 0"
                     @update:model-value="updateTemplateValue(templateKey, $event)"
                     :min="template.slider.min"
                     :max="template.slider.max"
                     :step="template.slider.step"
-                    color="primary"
-                    density="compact"
-                    hide-details
                     class="flex-grow-1"
-                  ></v-slider>
-                  <v-text-field
+                  ></UiSlider>
+                  <UiText
                     :model-value="getTemplateValue(templateKey)"
                     @update:model-value="updateTemplateValue(templateKey, $event)"
                     type="number"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :placeholder="t('core.common.objectEditor.placeholders.numberValue')"
                     :style="template.slider ? 'max-width: 120px;' : ''"
-                  ></v-text-field>
+                  ></UiText>
                 </div>
-                <v-switch
+                <UiCheck
                   v-else-if="template.type === 'boolean' || template.type === 'bool'"
                   :model-value="getTemplateValue(templateKey)"
                   @update:model-value="updateTemplateValue(templateKey, $event)"
-                  density="compact"
-                  hide-details
-                  color="primary"
-                ></v-switch>
-              </v-col>
-              <v-col cols="1" class="pl-2">
-                <v-btn
+                ></UiCheck>
+              </UiCol>
+              <UiCol cols="1" class="pl-2">
+                <UiButton
                   v-if="isTemplateKeyAdded(templateKey)"
                   icon
                   variant="text"
                   size="small"
                   color="error"
+                  :aria-label="'移除 ' + templateKey"
                   @click="removeTemplateKey(templateKey)"
                 >
-                  <v-icon>mdi-close</v-icon>
-                </v-btn>
-              </v-col>
-            </v-row>
+                  <UiIcon icon="mdi-close"></UiIcon>
+                </UiButton>
+              </UiCol>
+            </div>
           </div>
         </div>
 
         <div v-if="localKeyValuePairs.length === 0 && !hasTemplateSchema" class="text-center py-8">
-          <v-icon size="64" color="grey-lighten-1">mdi-code-json</v-icon>
+          <UiIcon icon="mdi-code-json" size="64" color="grey-lighten-1"></UiIcon>
           <p class="text-grey mt-4">{{ t('core.common.objectEditor.noParams') }}</p>
         </div>
-      </v-card-text>
+      </div>
 
       <!-- Add new key-value pair section -->
-      <v-card-text class="pa-4">
+      <div class="pi-section pa-4">
         <div class="d-flex align-center ga-2">
-          <v-text-field
+          <UiText
             v-model="newKey"
             :label="t('core.common.objectEditor.newKeyLabel')"
-            density="compact"
-            variant="outlined"
-            hide-details
             class="flex-grow-1"
-          ></v-text-field>
-          <v-select
+          ></UiText>
+          <UiChoice
             v-model="newValueType"
             :items="['string', 'number', 'boolean', 'json']"
             :label="t('core.common.objectEditor.valueTypeLabel')"
-            density="compact"
-            variant="outlined"
-            hide-details
             style="max-width: 120px"
-          ></v-select>
-          <v-btn @click="addKeyValuePair" variant="tonal" color="primary">
-            <v-icon>mdi-plus</v-icon>
+          ></UiChoice>
+          <UiButton @click="addKeyValuePair" variant="tonal" color="primary">
+            <UiIcon icon="mdi-plus"></UiIcon>
             {{ t('core.common.add') }}
-          </v-btn>
+          </UiButton>
         </div>
-      </v-card-text>
+      </div>
 
-      <v-card-actions class="pa-4">
-        <v-spacer></v-spacer>
-        <v-btn variant="text" @click="cancelDialog">{{ t('core.common.cancel') }}</v-btn>
-        <v-btn color="primary" variant="tonal" @click="confirmDialog">{{ t('core.common.confirm') }}</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      <footer class="pi-actions pa-4">
+        <span class="pi-spacer"></span>
+        <UiButton variant="text" @click="cancelDialog">{{ t('core.common.cancel') }}</UiButton>
+        <UiButton color="primary" variant="tonal" @click="confirmDialog">{{
+          t('core.common.confirm')
+        }}</UiButton>
+      </footer>
+    </UiCard>
+  </UiDialog>
 </template>
 
 <script setup>
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiCol from '@/ui/UiCol.vue'
+import UiDialog from '@/ui/UiDialog.vue'
+import UiIcon from '@/ui/UiIcon.vue'
+import UiSlider from '@/ui/fields/UiSlider.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { ref, computed, watch } from 'vue'
 import { useDraft } from '@/composables/drafts'
 import { useI18n } from '@/i18n/composables'

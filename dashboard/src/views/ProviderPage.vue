@@ -1,4 +1,14 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiCol from '@/ui/UiCol.vue'
+import UiDataTable from '@/ui/table/UiDataTable.vue'
+import UiDialog from '@/ui/UiDialog.vue'
+import UiListItem from '@/ui/UiListItem.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { usePasswordVisibility } from '@/composables/password-visibility'
 import { SecretValueSchema } from '@core/plugins/configuration/secret-editor'
 
@@ -220,14 +230,13 @@ onMounted(() => {
 })
 </script>
 <template>
-  <v-toolbar color="transparent"
-    ><v-toolbar-title>模型与 Provider</v-toolbar-title
-    ><v-btn @click="notifications.run(load)">刷新</v-btn> ><v-btn @click="open()" prepend-icon="mdi-plus"
-      >新增 Provider</v-btn
-    ></v-toolbar
-  >
-  <v-card
-    ><v-data-table
+  <header class="pi-toolbar">
+    <div class="pi-toolbar-title">模型与 Provider</div>
+    <UiButton @click="notifications.run(load)">刷新</UiButton
+    ><UiButton @click="open()" prepend-icon="mdi-plus">新增 Provider</UiButton>
+  </header>
+  <UiCard
+    ><UiDataTable
       show-expand
       :items="state?.providers ?? []"
       :headers="[
@@ -238,36 +247,37 @@ onMounted(() => {
         { title: '操作', key: 'actions' }
       ]"
       ><template #item.actions="{ item }"
-        ><v-btn variant="text" @click="open(item)">配置</v-btn
-        ><v-btn variant="text" color="error" @click="notifications.run(() => removeProvider(item))"
-          >删除</v-btn
+        ><UiButton variant="text" @click="open(item)">配置</UiButton
+        ><UiButton variant="text" color="error" @click="notifications.run(() => removeProvider(item))"
+          >删除</UiButton
         ></template
       ><template #expanded-row="{ item, columns }"
         ><tr>
           <td :colspan="columns.length">
-            <v-list
-              ><v-list-item
+            <div class="pi-list">
+              <UiListItem
                 v-for="model in item.models"
                 :key="model.id"
                 :title="model.name || model.id"
                 :subtitle="'上下文 ' + model.contextWindow + ' · 输出 ' + model.maxOutputTokens"
                 ><template #append
-                  ><v-btn variant="text" @click="notifications.run(() => setDefault(item.id, model.id))"
-                    >设为主选模型</v-btn
+                  ><UiButton variant="text" @click="notifications.run(() => setDefault(item.id, model.id))"
+                    >设为主选模型</UiButton
                   ></template
-                ></v-list-item
-              ></v-list
-            >
+                ></UiListItem
+              >
+            </div>
           </td>
         </tr></template
-      ></v-data-table
-    ></v-card
+      ></UiDataTable
+    ></UiCard
   >
-  <v-card title="模型组与故障转移"
-    ><v-card-actions
-      ><v-chip>默认：{{ state?.defaultGroup }}</v-chip
-      ><v-spacer /><v-btn @click="openGroup()">新增模型组</v-btn></v-card-actions
-    ><v-data-table
+  <UiCard title="模型组与故障转移"
+    ><footer class="pi-actions">
+      <UiChip>默认：{{ state?.defaultGroup }}</UiChip
+      ><span class="pi-spacer" /><UiButton @click="openGroup()">新增模型组</UiButton>
+    </footer>
+    <UiDataTable
       :items="state?.groups ?? []"
       :headers="[
         { title: '组', key: 'id' },
@@ -277,35 +287,36 @@ onMounted(() => {
         { title: '操作', key: 'actions' }
       ]"
       ><template #item.candidates="{ item }"
-        ><v-chip
+        ><UiChip
           v-for="candidate in item.candidates"
           :key="candidate.provider + candidate.model"
           size="small"
           class="ma-1"
-          >{{ candidate.provider }}/{{ candidate.model }}</v-chip
+          >{{ candidate.provider }}/{{ candidate.model }}</UiChip
         ></template
       ><template #item.actions="{ item }"
-        ><v-btn variant="text" @click="openGroup(item)">编辑</v-btn
-        ><v-btn variant="text" @click="notifications.run(() => groupAction(item, 'default'))">设为默认</v-btn
-        ><v-btn variant="text" color="error" @click="notifications.run(() => groupAction(item, 'delete'))"
-          >删除</v-btn
+        ><UiButton variant="text" @click="openGroup(item)">编辑</UiButton
+        ><UiButton variant="text" @click="notifications.run(() => groupAction(item, 'default'))"
+          >设为默认</UiButton
+        ><UiButton variant="text" color="error" @click="notifications.run(() => groupAction(item, 'delete'))"
+          >删除</UiButton
         ></template
-      ></v-data-table
-    ></v-card
+      ></UiDataTable
+    ></UiCard
   >
-  <v-dialog v-model="dialog" persistent max-width="1050" scrollable
-    ><v-card title="Provider 配置"
-      ><v-card-text :inert="busy">
-        <v-row
-          ><v-col cols="12" md="6"
-            ><v-text-field v-model="draft.id" label="ID" :disabled="Boolean(originalId)" /><v-text-field
+  <UiDialog v-model="dialog" persistent max-width="1050"
+    ><UiCard title="Provider 配置"
+      ><div class="pi-section" :inert="busy">
+        <div class="pi-row">
+          <UiCol cols="12" md="6"
+            ><UiText v-model="draft.id" label="ID" :disabled="Boolean(originalId)" /><UiText
               v-model="draft.name"
-              label="名称" /><v-text-field v-model="draft.baseUrl" label="API 基址" /><v-text-field
+              label="名称" /><UiText v-model="draft.baseUrl" label="API 基址" /><UiText
               v-model.number="draft.timeoutMs"
               type="number"
-              label="请求超时（毫秒）" /></v-col
-          ><v-col cols="12" md="6"
-            ><v-switch v-model="draft.enabled" label="启用" /><v-text-field
+              label="请求超时（毫秒）" /></UiCol
+          ><UiCol cols="12" md="6"
+            ><UiCheck v-model="draft.enabled" label="启用" /><UiText
               :model-value="draft.apiKey"
               @update:model-value="updateApiKey"
               label="API Key"
@@ -314,115 +325,122 @@ onMounted(() => {
               :append-inner-icon="keyVisibility.icon.value"
               @click:append-inner="keyVisibility.toggle"
               clearable
-              autocomplete="new-password" /><v-text-field
-              v-model="draft.apiKeyEnv"
-              label="凭据环境变量（可选）" /></v-col
-        ></v-row>
+              autocomplete="new-password" /><UiText v-model="draft.apiKeyEnv" label="凭据环境变量（可选）"
+          /></UiCol>
+        </div>
         <section class="form-section">
           <h3 class="form-section-title">请求 Header 与 Body</h3>
-          <v-row
-            ><v-col cols="12" md="6"
-              ><v-textarea v-model="headers" label="Header JSON（保留占位值表示原值不变）" rows="4" /></v-col
-            ><v-col cols="12" md="6"><v-textarea v-model="body" label="Body JSON" rows="4" /></v-col
-          ></v-row>
+          <div class="pi-row">
+            <UiCol cols="12" md="6"
+              ><UiText
+                multiline
+                v-model="headers"
+                label="Header JSON（保留占位值表示原值不变）"
+                rows="4" /></UiCol
+            ><UiCol cols="12" md="6"><UiText multiline v-model="body" label="Body JSON" rows="4" /></UiCol>
+          </div>
         </section>
-        <v-toolbar color="transparent"
-          ><v-toolbar-title>模型</v-toolbar-title
-          ><v-btn @click="notifications.run(listModels)">从服务拉取模型列表</v-btn
-          ><v-btn @click="addModel()">手动添加</v-btn></v-toolbar
-        >
-        <v-autocomplete
+        <header class="pi-toolbar">
+          <div class="pi-toolbar-title">模型</div>
+          <UiButton @click="notifications.run(listModels)">从服务拉取模型列表</UiButton
+          ><UiButton @click="addModel()">手动添加</UiButton>
+        </header>
+        <UiChoice
+          searchable
           v-if="availableModels.length"
           v-model="selectedModels"
           :items="availableModels"
           multiple
-          chips
           label="选择模型"
           aria-label="选择模型"
-        /><v-btn v-if="availableModels.length" @click="addModels">添加选中模型</v-btn>
+        /><UiButton v-if="availableModels.length" @click="addModels">添加选中模型</UiButton>
         <div class="provider-models">
-          <v-card
+          <UiCard
             v-for="(model, index) in draft.models"
             :key="index"
             :title="model.name || model.id"
             class="mb-4"
-            ><v-card-text>
-              <v-row
-                ><v-col
-                  ><v-text-field v-model="model.id" label="模型 ID" /><v-text-field
+            ><div class="pi-section">
+              <div class="pi-row">
+                <UiCol
+                  ><UiText v-model="model.id" label="模型 ID" /><UiText
                     v-model="model.name"
-                    label="显示名称" /></v-col
-                ><v-col
-                  ><v-text-field
-                    v-model.number="model.contextWindow"
-                    label="上下文窗口"
-                    type="number" /><v-text-field
+                    label="显示名称" /></UiCol
+                ><UiCol
+                  ><UiText v-model.number="model.contextWindow" label="上下文窗口" type="number" /><UiText
                     v-model.number="model.maxOutputTokens"
                     label="最大输出 Token"
-                    type="number" /></v-col></v-row
-              ><v-row
-                ><v-col><v-switch v-model="model.enabled" label="启用" /></v-col
-                ><v-col><v-switch v-model="model.reasoning" label="支持推理" /></v-col
-                ><v-col><v-switch v-model="model.images" label="支持图片" /></v-col
-              ></v-row>
-              <v-textarea v-model="modelTexts[index].headers" label="模型 Header JSON" rows="3" /><v-textarea
-                v-model="modelTexts[index].body"
-                label="模型 Body JSON"
+                    type="number"
+                /></UiCol>
+              </div>
+              <div class="pi-row">
+                <UiCol><UiCheck v-model="model.enabled" label="启用" /></UiCol
+                ><UiCol><UiCheck v-model="model.reasoning" label="支持推理" /></UiCol
+                ><UiCol><UiCheck v-model="model.images" label="支持图片" /></UiCol>
+              </div>
+              <UiText
+                multiline
+                v-model="modelTexts[index].headers"
+                label="模型 Header JSON"
                 rows="3"
-              />
-              <v-btn @click="notifications.run(() => testModel(model.id))">测试模型（会请求上游）</v-btn
-              ><v-btn color="error" @click="removeModel(index)">删除模型</v-btn>
-            </v-card-text></v-card
+              /><UiText multiline v-model="modelTexts[index].body" label="模型 Body JSON" rows="3" />
+              <UiButton @click="notifications.run(() => testModel(model.id))">测试模型（会请求上游）</UiButton
+              ><UiButton color="error" @click="removeModel(index)">删除模型</UiButton>
+            </div></UiCard
           >
         </div>
-        <pre v-if="result">{{ result }}</pre></v-card-text
-      ><v-card-actions
-        ><v-spacer /><v-btn @click="close">取消</v-btn
-        ><v-btn variant="flat" :loading="busy" color="primary" @click="notifications.run(save)"
-          >保存 Provider</v-btn
-        ></v-card-actions
-      ></v-card
-    ></v-dialog
+        <pre v-if="result">{{ result }}</pre>
+      </div>
+      <footer class="pi-actions">
+        <span class="pi-spacer" /><UiButton @click="close">取消</UiButton
+        ><UiButton variant="flat" :loading="busy" color="primary" @click="notifications.run(save)"
+          >保存 Provider</UiButton
+        >
+      </footer></UiCard
+    ></UiDialog
   >
-  <v-dialog v-model="groupDialog" persistent max-width="750"
-    ><v-card title="模型组"
-      ><v-card-text :inert="busy"
-        ><v-text-field v-model="group.id" label="组 ID" :disabled="Boolean(originalId)" /><v-text-field
+  <UiDialog v-model="groupDialog" persistent max-width="750"
+    ><UiCard title="模型组"
+      ><div class="pi-section" :inert="busy">
+        <UiText v-model="group.id" label="组 ID" :disabled="Boolean(originalId)" /><UiText
           v-model="group.name"
           label="名称"
-        /><v-text-field v-model.number="group.cooldownMs" type="number" label="失败冷却（毫秒）" />
-        <v-row v-for="(candidate, index) in group.candidates" :key="index"
-          ><v-col
-            ><v-select
+        /><UiText v-model.number="group.cooldownMs" type="number" label="失败冷却（毫秒）" />
+        <div class="pi-row" v-for="(candidate, index) in group.candidates" :key="index">
+          <UiCol
+            ><UiChoice
               v-model="candidate.provider"
               :items="state?.providers ?? []"
               item-title="id"
               item-value="id"
               label="Provider"
-              aria-label="Provider" /></v-col
-          ><v-col
-            ><v-combobox
+              aria-label="Provider" /></UiCol
+          ><UiCol
+            ><UiText
               v-model="candidate.model"
-              :items="
+              :suggestions="
                 state?.providers
                   .find((provider) => provider.id === candidate.provider)
                   ?.models.map((model) => model.id) ?? []
               "
-              label="模型" /></v-col
-          ><v-col cols="auto"
-            ><v-btn
+              label="模型" /></UiCol
+          ><UiCol cols="auto"
+            ><UiButton
               icon="mdi-arrow-up"
               :disabled="index === 0"
               variant="text"
               aria-label="提高优先级"
-              @click="group.candidates.splice(index - 1, 0, ...group.candidates.splice(index, 1))" /><v-btn
+              @click="group.candidates.splice(index - 1, 0, ...group.candidates.splice(index, 1))" /><UiButton
               icon="mdi-delete-outline"
               variant="text"
               aria-label="删除候选"
-              @click="group.candidates.splice(index, 1)" /></v-col></v-row
-        ><v-btn @click="group.candidates.push({ provider: '', model: '' })">添加候选模型</v-btn> </v-card-text
-      ><v-card-actions
-        ><v-spacer /><v-btn
+              @click="group.candidates.splice(index, 1)"
+          /></UiCol>
+        </div>
+        <UiButton @click="group.candidates.push({ provider: '', model: '' })">添加候选模型</UiButton>
+      </div>
+      <footer class="pi-actions">
+        <span class="pi-spacer" /><UiButton
           @click="
             groupChanges.discard().then((leave) => {
               if (leave) {
@@ -431,11 +449,9 @@ onMounted(() => {
               }
             })
           "
-          >取消</v-btn
-        ><v-btn variant="flat" color="primary" @click="notifications.run(saveGroup)"
-          >保存模型组</v-btn
-        ></v-card-actions
-      ></v-card
-    ></v-dialog
+          >取消</UiButton
+        ><UiButton variant="flat" color="primary" @click="notifications.run(saveGroup)">保存模型组</UiButton>
+      </footer></UiCard
+    ></UiDialog
   >
 </template>

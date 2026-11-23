@@ -1,7 +1,15 @@
 <script setup>
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiCol from '@/ui/UiCol.vue'
+import UiDialog from '@/ui/UiDialog.vue'
+import UiIcon from '@/ui/UiIcon.vue'
+import UiListItem from '@/ui/UiListItem.vue'
 import { VueMonacoEditor } from '@/composables/monaco'
 import { ref, computed, inject } from 'vue'
-import { useTheme } from 'vuetify'
+import { useAppearance } from '@/ui/appearance'
 import { ConfigurationKey, pointer } from '@/api/plugin-configuration'
 import ConfigItemRenderer from './ConfigItemRenderer.vue'
 import ConfigDefaultReset from './ConfigDefaultReset.vue'
@@ -53,12 +61,12 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
-const theme = useTheme()
+const theme = useAppearance()
 const fullscreenTheme = computed(() => {
   if (currentEditingTheme.value) {
     return currentEditingTheme.value
   }
-  if (theme.global.current.value.dark) {
+  if (theme.dark.value) {
     return 'vs-dark'
   }
   return 'vs-light'
@@ -223,28 +231,28 @@ function hasVisibleItemsAfter(items, currentIndex) {
       (metadata[metadataKey]?.description || metadata[metadataKey]?.hint)
     "
   >
-    <v-list-item-title class="config-title">
+    <div class="pi-list-title config-title">
       {{ resolveConfigText(currentConfigPath, 'description', metadata[metadataKey]?.description) }}
       <span v-if="metadata[metadataKey]?.show_key" class="metadata-key">({{ metadataKey }})</span>
-    </v-list-item-title>
-    <v-list-item-subtitle class="config-hint">
+    </div>
+    <div class="pi-subtitle config-hint">
       <span v-if="metadata[metadataKey]?.obvious_hint && metadata[metadataKey]?.hint" class="important-hint"
         >‼️</span
       >
       {{ resolveConfigText(currentConfigPath, 'hint', metadata[metadataKey]?.hint) }}
-    </v-list-item-subtitle>
+    </div>
   </div>
 
-  <v-card-text class="px-0 py-1">
+  <div class="pi-section px-0 py-1">
     <!-- Object Type Configuration -->
     <div
       v-if="metadata[metadataKey]?.type === 'object' || metadata[metadataKey]?.config_template"
       class="object-config"
     >
       <!-- Provider-level hint -->
-      <v-alert v-if="providerHint" type="info" variant="tonal" class="mb-4" border="start" density="compact">
+      <div v-if="providerHint" data-tone="info" class="pi-alert mb-4">
         {{ translateIfKey(providerHint) }}
-      </v-alert>
+      </div>
 
       <div
         v-for="(val, key, index) in filteredIterable"
@@ -267,7 +275,7 @@ function hasVisibleItemsAfter(items, currentIndex) {
             class="nested-container"
             :class="{ 'nested-container--flat': flatObjects }"
           >
-            <v-expand-transition>
+            <Transition>
               <AstrBotConfig
                 :metadata="metadata[metadataKey].items"
                 :iterable="iterable[key]"
@@ -280,7 +288,7 @@ function hasVisibleItemsAfter(items, currentIndex) {
                 :enable-default-reset="enableDefaultReset"
               >
               </AstrBotConfig>
-            </v-expand-transition>
+            </Transition>
           </div>
         </div>
 
@@ -297,7 +305,7 @@ function hasVisibleItemsAfter(items, currentIndex) {
             class="nested-container"
           >
             <div class="config-section mb-2">
-              <v-list-item-title class="config-title">
+              <div class="pi-list-title config-title">
                 <span v-if="metadata[metadataKey].items[key]?.description">
                   {{
                     resolveConfigText(
@@ -311,8 +319,8 @@ function hasVisibleItemsAfter(items, currentIndex) {
                   >
                 </span>
                 <span v-else>{{ key }}</span>
-              </v-list-item-title>
-              <v-list-item-subtitle class="config-hint">
+              </div>
+              <div class="pi-subtitle config-hint">
                 <span
                   v-if="
                     metadata[metadataKey].items[key]?.obvious_hint && metadata[metadataKey].items[key]?.hint
@@ -321,16 +329,15 @@ function hasVisibleItemsAfter(items, currentIndex) {
                   >‼️</span
                 >
                 {{ resolveConfigText(getItemPath(key), 'hint', metadata[metadataKey].items[key]?.hint) }}
-              </v-list-item-subtitle>
+              </div>
             </div>
-            <v-checkbox
+            <UiCheck
+              checkbox
               v-if="scopedField(key)"
               :model-value="overrideEnabled(key)"
               @update:model-value="changeOverride(key, $event)"
               :disabled="!configuration.canOverride(metadata[metadataKey].items[key]) || disabled"
               label="在此范围覆盖（关闭后恢复继承）"
-              hide-details
-              density="compact"
             />
             <ConfigDefaultReset
               :model-value="iterable[key]"
@@ -354,17 +361,17 @@ function hasVisibleItemsAfter(items, currentIndex) {
 
         <!-- Regular Property -->
         <template v-else>
-          <v-row
+          <div
             v-if="
               !metadata[metadataKey].items[key]?.invisible &&
               shouldShowItem(metadata[metadataKey].items[key], key)
             "
-            class="config-row"
+            class="pi-row config-row"
             :class="{ 'config-row--editor': metadata[metadataKey].items[key]?.editor_mode }"
           >
-            <v-col cols="12" :sm="fieldColumns(metadata[metadataKey].items[key])" class="property-info">
-              <v-list-item density="compact">
-                <v-list-item-title class="property-name">
+            <UiCol cols="12" :sm="fieldColumns(metadata[metadataKey].items[key])" class="property-info">
+              <UiListItem>
+                <div class="pi-list-title property-name">
                   <span v-if="metadata[metadataKey].items[key]?.description">
                     {{
                       resolveConfigText(
@@ -378,9 +385,9 @@ function hasVisibleItemsAfter(items, currentIndex) {
                     >
                   </span>
                   <span v-else>{{ key }}</span>
-                </v-list-item-title>
+                </div>
 
-                <v-list-item-subtitle class="property-hint">
+                <div class="pi-subtitle property-hint">
                   <span :class="{ 'property-hint__content--linked': fieldLinks[key] }">
                     <span
                       v-if="
@@ -407,22 +414,21 @@ function hasVisibleItemsAfter(items, currentIndex) {
                       >{{ fieldLinks[key].label }}</a
                     >
                   </span>
-                </v-list-item-subtitle>
-              </v-list-item>
-            </v-col>
+                </div>
+              </UiListItem>
+            </UiCol>
 
-            <v-col cols="12" :sm="fieldColumns(metadata[metadataKey].items[key])" class="config-input">
-              <v-checkbox
+            <UiCol cols="12" :sm="fieldColumns(metadata[metadataKey].items[key])" class="config-input">
+              <UiCheck
+                checkbox
                 v-if="scopedField(key)"
                 :model-value="overrideEnabled(key)"
                 @update:model-value="changeOverride(key, $event)"
                 :disabled="!configuration.canOverride(metadata[metadataKey].items[key]) || disabled"
                 label="在此范围覆盖（关闭后恢复继承）"
-                hide-details
-                density="compact"
               />
-              <v-chip v-if="scopedField(key) && !overrideEnabled(key)" size="small" class="mb-2"
-                >继承上级配置</v-chip
+              <UiChip v-if="scopedField(key) && !overrideEnabled(key)" size="small" class="mb-2"
+                >继承上级配置</UiChip
               >
               <ConfigDefaultReset
                 :model-value="iterable[key]"
@@ -449,45 +455,45 @@ function hasVisibleItemsAfter(items, currentIndex) {
                   "
                 />
               </ConfigDefaultReset>
-            </v-col>
-          </v-row>
+            </UiCol>
+          </div>
 
-          <v-divider
+          <hr
             v-if="
               hasVisibleItemsAfter(filteredIterable, index) &&
               !metadata[metadataKey].items[key]?.invisible &&
               shouldShowItem(metadata[metadataKey].items[key], key)
             "
-            class="config-divider"
-          ></v-divider>
+            class="pi-divider config-divider"
+          />
         </template>
       </div>
     </div>
 
     <!-- Simple Value Configuration -->
     <div v-else class="simple-config">
-      <v-row class="config-row">
-        <v-col cols="12" :sm="fieldColumns(metadata[metadataKey], 7)" class="property-info">
-          <v-list-item density="compact">
-            <v-list-item-title class="property-name">
+      <div class="pi-row config-row">
+        <UiCol cols="12" :sm="fieldColumns(metadata[metadataKey], 7)" class="property-info">
+          <UiListItem>
+            <div class="pi-list-title property-name">
               {{
                 resolveConfigText(getItemPath(metadataKey), 'description', metadata[metadataKey]?.description)
               }}
               <span v-if="metadata[metadataKey]?.show_key" class="property-key">({{ metadataKey }})</span>
-            </v-list-item-title>
+            </div>
 
-            <v-list-item-subtitle class="property-hint">
+            <div class="pi-subtitle property-hint">
               <span
                 v-if="metadata[metadataKey]?.obvious_hint && metadata[metadataKey]?.hint"
                 class="important-hint"
                 >‼️</span
               >
               {{ resolveConfigText(getItemPath(metadataKey), 'hint', metadata[metadataKey]?.hint) }}
-            </v-list-item-subtitle>
-          </v-list-item>
-        </v-col>
+            </div>
+          </UiListItem>
+        </UiCol>
 
-        <v-col cols="12" :sm="fieldColumns(metadata[metadataKey], 5)" class="config-input">
+        <UiCol cols="12" :sm="fieldColumns(metadata[metadataKey], 5)" class="config-input">
           <ConfigDefaultReset
             :model-value="iterable[metadataKey]"
             :item-meta="metadata[metadataKey]"
@@ -513,29 +519,29 @@ function hasVisibleItemsAfter(items, currentIndex) {
               :config-key="getItemPath(metadataKey)"
             />
           </ConfigDefaultReset>
-        </v-col>
-      </v-row>
+        </UiCol>
+      </div>
 
-      <v-divider class="my-2 config-divider"></v-divider>
+      <hr class="pi-divider my-2 config-divider" />
     </div>
-  </v-card-text>
+  </div>
 
   <!-- Full Screen Editor Dialog -->
-  <v-dialog v-model="dialog" fullscreen transition="dialog-bottom-transition" scrollable>
-    <v-card class="fullscreen-editor" :border="false">
-      <v-toolbar color="primary" dark>
-        <v-btn icon variant="text" color="on-primary" aria-label="返回配置" @click="dialog = false">
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
-        <v-toolbar-title
-          >{{ t('core.common.editor.editingTitle') }} - {{ currentEditingKey }}</v-toolbar-title
-        >
-        <v-spacer></v-spacer>
-        <v-toolbar-items>
-          <v-btn variant="tonal" color="on-primary" @click="saveEditedContent">完成编辑</v-btn>
-        </v-toolbar-items>
-      </v-toolbar>
-      <v-card-text class="pa-0 editor-dialog-body">
+  <UiDialog v-model="dialog" fullscreen>
+    <UiCard class="fullscreen-editor">
+      <header class="pi-toolbar">
+        <UiButton icon variant="text" color="on-primary" aria-label="返回配置" @click="dialog = false">
+          <UiIcon icon="mdi-close"></UiIcon>
+        </UiButton>
+        <div class="pi-toolbar-title">
+          {{ t('core.common.editor.editingTitle') }} - {{ currentEditingKey }}
+        </div>
+        <span class="pi-spacer"></span>
+        <div class="pi-toolbar-items">
+          <UiButton variant="tonal" color="on-primary" @click="saveEditedContent">完成编辑</UiButton>
+        </div>
+      </header>
+      <div class="pi-section pa-0 editor-dialog-body">
         <VueMonacoEditor
           :theme="fullscreenTheme"
           :language="currentEditingLanguage"
@@ -550,9 +556,9 @@ function hasVisibleItemsAfter(items, currentIndex) {
           v-model:value="currentEditingKeyIterable[currentEditingKey]"
         >
         </VueMonacoEditor>
-      </v-card-text>
-    </v-card>
-  </v-dialog>
+      </div>
+    </UiCard>
+  </UiDialog>
 </template>
 
 <style scoped>
@@ -563,19 +569,19 @@ function hasVisibleItemsAfter(items, currentIndex) {
 .config-title {
   font-weight: 600;
   font-size: 1rem;
-  color: rgb(var(--v-theme-primaryText));
+  color: rgb(var(--pi-primaryText));
 }
 
 .config-hint {
   font-size: 0.75rem;
-  color: rgb(var(--v-theme-secondaryText));
+  color: rgb(var(--pi-secondaryText));
   margin-top: 2px;
   opacity: 1;
 }
 
 .metadata-key,
 .property-key {
-  color: rgba(var(--v-theme-on-surface), 0.45);
+  color: rgba(var(--pi-on-surface), 0.45);
   font-size: 0.82em;
   font-weight: normal;
   margin-left: 4px;
@@ -600,11 +606,11 @@ function hasVisibleItemsAfter(items, currentIndex) {
 }
 
 .nested-container {
-  border: 1px solid rgb(var(--v-theme-borderLight));
+  border: 1px solid rgb(var(--pi-borderLight));
   border-radius: 8px;
   padding: 12px;
   margin: 12px 0;
-  background-color: rgba(var(--v-theme-primary), 0.025);
+  background-color: rgba(var(--pi-primary), 0.025);
 }
 .nested-object--flat {
   padding: 0;
@@ -625,7 +631,7 @@ function hasVisibleItemsAfter(items, currentIndex) {
 }
 
 .config-row:hover {
-  background-color: rgba(var(--v-theme-primary), 0.025);
+  background-color: rgba(var(--pi-primary), 0.025);
 }
 .config-row--editor {
   align-items: flex-start;
@@ -641,12 +647,12 @@ function hasVisibleItemsAfter(items, currentIndex) {
 .property-name {
   font-size: 0.875rem;
   font-weight: 600;
-  color: rgb(var(--v-theme-primaryText));
+  color: rgb(var(--pi-primaryText));
   white-space: normal;
 }
 
 .property-link {
-  color: rgb(var(--v-theme-primary));
+  color: rgb(var(--pi-primary));
   font-size: 0.75rem;
   font-weight: 500;
   text-decoration: none;
@@ -659,7 +665,7 @@ function hasVisibleItemsAfter(items, currentIndex) {
 
 .property-hint {
   font-size: 0.75rem;
-  color: rgb(var(--v-theme-secondaryText));
+  color: rgb(var(--pi-secondaryText));
   margin-top: 2px;
   display: block;
   overflow: visible;
@@ -688,7 +694,7 @@ function hasVisibleItemsAfter(items, currentIndex) {
   max-width: 360px;
   margin-left: auto;
 }
-.config-input :deep(.v-switch .v-selection-control) {
+.config-input :deep(.pi-switch .pi-fieldion-control) {
   justify-content: flex-end;
 }
 
@@ -697,7 +703,7 @@ function hasVisibleItemsAfter(items, currentIndex) {
 }
 
 .config-divider {
-  border-color: rgb(var(--v-theme-borderLight));
+  border-color: rgb(var(--pi-borderLight));
   margin: 0px 16px;
 }
 .fullscreen-editor {
@@ -744,7 +750,7 @@ function hasVisibleItemsAfter(items, currentIndex) {
     padding: 4px 4px;
   }
 
-  .property-info :deep(.v-list-item) {
+  .property-info :deep(.pi-list-item) {
     padding-inline: 0;
   }
 

@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiCol from '@/ui/UiCol.vue'
 import { computed, onMounted, ref } from 'vue'
 import { RegistryViewSchema, type RegistryView } from '@demo/contracts/resources'
 import type { Operation } from '@demo/contracts/operations'
@@ -73,28 +79,30 @@ onMounted(() => {
       <h1 class="text-h5 font-weight-bold">资源与提供者</h1>
       <p class="text-medium-emphasis mt-1">资源实例 → 提供者声明的操作 → 配置、测试与入口引用</p>
     </div>
-    <v-spacer /><v-btn variant="tonal" :loading="busy" @click="notices.run(load)">刷新</v-btn>
+    <span class="pi-spacer" /><UiButton variant="tonal" :loading="busy" @click="notices.run(load)"
+      >刷新</UiButton
+    >
   </div>
-  <v-alert type="info" variant="tonal" class="mb-5"
-    >Bot 不定义资源的业务类别。提供者声明操作、输入／输出 JSON Schema 与 UI
-    Schema；所有操作共用同一个调用入口。</v-alert
-  >
+  <div data-tone="info" class="pi-alert mb-5">
+    Bot 不定义资源的业务类别。提供者声明操作、输入／输出 JSON Schema 与 UI
+    Schema；所有操作共用同一个调用入口。
+  </div>
   <h2 class="text-h6 mb-3">提供者注册</h2>
-  <v-row class="mb-5"
-    ><v-col v-for="provider in view?.providers" :key="provider.id" cols="12" md="6" lg="4"
-      ><v-card height="100%" class="provider-card" :id="provider.id">
-        <v-card-title>{{ provider.title }}</v-card-title
-        ><v-card-text
-          ><v-chip v-if="provider.active" size="small" color="success">已注册</v-chip
-          ><v-chip v-else size="small" color="warning">待注册</v-chip>
+  <div class="pi-row mb-5">
+    <UiCol v-for="provider in view?.providers" :key="provider.id" cols="12" md="6" lg="4"
+      ><UiCard height="100%" class="provider-card" :id="provider.id">
+        <div class="pi-card-title">{{ provider.title }}</div>
+        <div class="pi-section">
+          <UiChip v-if="provider.active" size="small" color="success">已注册</UiChip
+          ><UiChip v-else size="small" color="warning">待注册</UiChip>
           <p class="mt-3">{{ provider.description }}</p>
           <p class="text-caption text-medium-emphasis mt-3">
             {{ provider.resources }} 个实例 · {{ provider.operations.length }} 项操作声明 · 发现版本
             {{ provider.discoveryRevision }}
-          </p></v-card-text
-        >
-        <v-card-actions class="flex-wrap px-4 pb-4"
-          ><v-btn
+          </p>
+        </div>
+        <footer class="pi-actions flex-wrap px-4 pb-4">
+          <UiButton
             v-if="!provider.active"
             color="primary"
             variant="flat"
@@ -108,8 +116,8 @@ onMounted(() => {
                 )
               )
             "
-            >注册提供者</v-btn
-          ><v-btn
+            >注册提供者</UiButton
+          ><UiButton
             v-else
             color="primary"
             variant="tonal"
@@ -119,9 +127,9 @@ onMounted(() => {
                 action('providers/' + id(provider.id) + '/discovery', { revision: view!.revision }, 'POST')
               )
             "
-            >发现实例</v-btn
-          ><v-btn @click="config = { subject: 'provider', id: provider.id }">连接配置</v-btn
-          ><v-spacer /><v-btn
+            >发现实例</UiButton
+          ><UiButton @click="config = { subject: 'provider', id: provider.id }">连接配置</UiButton
+          ><span class="pi-spacer" /><UiButton
             v-if="provider.active"
             color="warning"
             :disabled="busy"
@@ -134,60 +142,58 @@ onMounted(() => {
                 )
               )
             "
-            >注销</v-btn
-          ></v-card-actions
-        >
-      </v-card></v-col
-    ></v-row
-  >
+            >注销</UiButton
+          >
+        </footer>
+      </UiCard></UiCol
+    >
+  </div>
   <div class="d-flex flex-wrap align-center ga-3 mb-4">
     <h2 class="text-h6">资源实例与操作</h2>
-    <v-spacer /><v-select
+    <span class="pi-spacer" /><UiChoice
       v-model="filter"
       label="按提供者筛选"
       :items="[
         { title: '全部提供者', value: 'all' },
         ...(view?.providers.map((item) => ({ title: item.title, value: item.id })) ?? [])
       ]"
-      hide-details
       style="max-width: 280px"
     />
   </div>
-  <v-row
-    ><v-col v-for="resource in resources" :key="resource.id" cols="12" md="6"
-      ><v-card height="100%" class="resource-card" :id="resource.id">
-        <v-card-title>{{ resource.name }}</v-card-title
-        ><v-card-text
-          ><v-chip :color="resourceColor(resource)" size="small" class="mb-3">{{
+  <div class="pi-row">
+    <UiCol v-for="resource in resources" :key="resource.id" cols="12" md="6"
+      ><UiCard height="100%" class="resource-card" :id="resource.id">
+        <div class="pi-card-title">{{ resource.name }}</div>
+        <div class="pi-section">
+          <UiChip :color="resourceColor(resource)" size="small" class="mb-3">{{
             resourceState(resource)
-          }}</v-chip>
+          }}</UiChip>
           <p>{{ resource.description }}</p>
           <p class="text-caption text-medium-emphasis mt-2">
             {{ resource.providerTitle }} · {{ attributes(resource) }}
           </p>
-          <v-divider class="my-4" />
+          <hr class="pi-divider my-4" />
           <div v-for="operation in resource.operations" :key="operation.id" class="operation-row">
             <div>
               <strong>{{ operation.title }}</strong>
               <p class="text-caption text-medium-emphasis">{{ operation.id }} · v{{ operation.version }}</p>
               <p class="text-body-2 mt-1">{{ operation.description }}</p>
             </div>
-            <v-btn
+            <UiButton
               color="primary"
               variant="tonal"
               :disabled="!resource.available"
               @click="inspecting = { resource, operation }"
-              >查看与测试</v-btn
+              >查看与测试</UiButton
             >
-          </div> </v-card-text
-        ><v-card-actions class="px-4 pb-3"
-          ><v-btn @click="config = { subject: 'resource', id: resource.id }">实例配置</v-btn
-          ><v-spacer /><v-switch
+          </div>
+        </div>
+        <footer class="pi-actions px-4 pb-3">
+          <UiButton @click="config = { subject: 'resource', id: resource.id }">实例配置</UiButton
+          ><span class="pi-spacer" /><UiCheck
             :model-value="resource.enabled"
             label="启用"
             :aria-label="resource.name + '启用'"
-            hide-details
-            color="primary"
             :disabled="busy"
             @update:model-value="
               notices.run(() =>
@@ -198,8 +204,10 @@ onMounted(() => {
                 )
               )
             "
-        /></v-card-actions> </v-card></v-col
-  ></v-row>
+          />
+        </footer> </UiCard
+    ></UiCol>
+  </div>
   <OperationBindings v-if="view" :registry="view" @saved="notices.run(load)" />
   <ResourceConfigurationDialog
     v-if="config"
@@ -219,10 +227,10 @@ onMounted(() => {
 </template>
 <style scoped>
 .provider-card {
-  border-top: 3px solid rgb(var(--v-theme-primary));
+  border-top: 3px solid rgb(var(--pi-primary));
 }
 .resource-card {
-  border-top: 3px solid rgb(var(--v-theme-success));
+  border-top: 3px solid rgb(var(--pi-success));
 }
 .operation-row {
   display: flex;

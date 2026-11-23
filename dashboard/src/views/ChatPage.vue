@@ -1,7 +1,17 @@
 <script setup lang="ts">
+import UiAccordion from '@/ui/UiAccordion.vue'
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiDialog from '@/ui/UiDialog.vue'
+import UiDisclosure from '@/ui/UiDisclosure.vue'
+import UiDrawer from '@/ui/UiDrawer.vue'
+import RunTrace from '@/components/chat/RunTrace.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useTheme, useDisplay } from 'vuetify'
+import { useAppearance, useViewport } from '@/ui/appearance'
 import { AttachmentSchema, type Attachment, type ChatMessage } from '@core/domain/message'
 import { RoomDetailSchema } from '@core/http/contracts'
 import { useChatDrafts } from '@/stores/chat-drafts'
@@ -14,8 +24,8 @@ import ChatInput from '@/components/chat/ChatInput.vue'
 const workspace = useWorkspace()
 const notifications = useNotifications()
 const route = useRoute()
-const theme = useTheme()
-const display = useDisplay()
+const theme = useAppearance()
+const display = useViewport()
 const recordWidth = computed(() => {
   return Math.min(520, display.width.value)
 })
@@ -164,27 +174,23 @@ async function saveSettings() {
 </script>
 <template>
   <div v-if="detail" class="d-flex flex-column" style="height: calc(100dvh - 116px); min-height: 420px">
-    <v-toolbar color="transparent" density="compact"
-      ><v-toolbar-title>{{ detail.room.name }}</v-toolbar-title
-      ><v-chip v-if="detail.room.mode === 'demo'" color="warning" size="small">离线演示</v-chip
-      ><v-chip v-else color="success" size="small">真实模型</v-chip
-      ><v-btn icon="mdi-cog-outline" aria-label="聊天设置" @click="openSettings" /><v-btn
+    <header class="pi-toolbar">
+      <div class="pi-toolbar-title">{{ detail.room.name }}</div>
+      <UiChip v-if="detail.room.mode === 'demo'" color="warning" size="small">离线演示</UiChip
+      ><UiChip v-else color="success" size="small">真实模型</UiChip
+      ><UiButton icon="mdi-cog-outline" aria-label="聊天设置" @click="openSettings" /><UiButton
         icon="mdi-clock-outline"
         aria-label="任务与追踪"
-        @click="records = true" /><v-btn
-        icon="mdi-plus"
-        aria-label="新建会话"
-        @click="notifications.run(() => action('new'))"
-    /></v-toolbar>
-    <v-select
+        @click="records = true"
+      /><UiButton icon="mdi-plus" aria-label="新建会话" @click="notifications.run(() => action('new'))" />
+    </header>
+    <UiChoice
       :model-value="detail.room.currentConversationId"
       @update:model-value="notifications.run(() => selectConversation($event))"
       :items="detail.conversations"
       item-title="title"
       item-value="id"
       label="会话上下文"
-      density="compact"
-      hide-details
       class="flex-grow-0 mb-2"
       aria-label="会话上下文"
     />
@@ -194,7 +200,7 @@ async function saveSettings() {
         :room-id="roomId"
         :preview="preview"
         :streaming="Boolean(running.length)"
-        :is-dark="theme.global.current.value.dark"
+        :is-dark="theme.dark.value"
         @reply="reply"
         @recall="notifications.run(() => recall($event))"
         @retry-media="notifications.run(() => retryMedia($event))"
@@ -206,7 +212,7 @@ async function saveSettings() {
       :reply-label="draft.replyLabel"
       :disabled="busy"
       :is-running="Boolean(running.length)"
-      :is-dark="theme.global.current.value.dark"
+      :is-dark="theme.dark.value"
       @send="notifications.run(send)"
       @stop="notifications.run(() => action('stop'))"
       @upload="notifications.run(() => upload($event))"
@@ -214,48 +220,37 @@ async function saveSettings() {
       @clear-reply="clearReply"
     />
   </div>
-  <v-alert v-else type="info" variant="tonal"
-    >请选择一个渠道，或创建 Mock 渠道。<v-progress-linear v-if="workspace.loading" indeterminate
-  /></v-alert>
-  <v-navigation-drawer v-model="records" location="right" temporary :width="recordWidth"
-    ><v-toolbar
-      ><v-toolbar-title>任务与工具追踪</v-toolbar-title><v-btn icon="mdi-close" @click="records = false"
-    /></v-toolbar>
-    <v-expansion-panels multiple
-      ><v-expansion-panel
-        v-for="run in detail?.runs"
-        :key="run.id"
-        :title="run.status + ' · ' + run.providerGroup"
-        ><v-expansion-panel-text
-          ><v-chip class="mb-3">模型 {{ run.modelCalls }} · 工具 {{ run.toolCalls }}</v-chip>
+  <div class="pi-alert" v-else data-tone="info">
+    请选择一个渠道，或创建 Mock 渠道。<progress class="pi-progress" v-if="workspace.loading" />
+  </div>
+  <UiDrawer v-model="records" location="right" temporary :width="recordWidth"
+    ><header class="pi-toolbar">
+      <div class="pi-toolbar-title">任务与工具追踪</div>
+      <UiButton aria-label="关闭运行记录" icon="mdi-close" @click="records = false" />
+    </header>
+    <UiAccordion multiple
+      ><UiDisclosure v-for="run in detail?.runs" :key="run.id" :title="run.status + ' · ' + run.providerGroup"
+        ><div class="pi-disclosure-body">
+          <UiChip class="mb-3">模型 {{ run.modelCalls }} · 工具 {{ run.toolCalls }}</UiChip>
           <p>输入 {{ run.usage.input }} / 输出 {{ run.usage.output }} / 缓存读取 {{ run.usage.cacheRead }}</p>
-          <v-alert v-if="run.error" type="error">{{ run.error }}</v-alert
-          ><v-list
-            ><v-list-item
-              v-for="trace in detail?.traces.filter((entry) => entry.runId === run.id)"
-              :key="trace.id"
-              :title="trace.title"
-              :subtitle="trace.kind"
-            >
-              <pre>{{ trace.detail }}</pre>
-            </v-list-item></v-list
-          >
+          <div class="pi-alert" v-if="run.error" data-tone="error">{{ run.error }}</div>
+          <RunTrace :events="(detail?.traces ?? []).filter((entry) => entry.runId === run.id)" />
           <pre v-if="run.presentation">{{ JSON.stringify(run.presentation, null, 2) }}</pre>
-        </v-expansion-panel-text></v-expansion-panel
-      ></v-expansion-panels
+        </div></UiDisclosure
+      ></UiAccordion
     >
-    <v-expansion-panels class="mt-4"
-      ><v-expansion-panel title="平台发送回执"
-        ><v-expansion-panel-text>
+    <UiAccordion class="mt-4"
+      ><UiDisclosure title="平台发送回执"
+        ><div class="pi-disclosure-body">
           <pre>{{ JSON.stringify(detail?.outbound, null, 2) }}</pre>
-        </v-expansion-panel-text></v-expansion-panel
-      ></v-expansion-panels
+        </div></UiDisclosure
+      ></UiAccordion
     >
-  </v-navigation-drawer>
-  <v-dialog v-model="settings" max-width="600"
-    ><v-card title="聊天设置"
-      ><v-card-text
-        ><v-select
+  </UiDrawer>
+  <UiDialog v-model="settings" max-width="600"
+    ><UiCard title="聊天设置"
+      ><div class="pi-section">
+        <UiChoice
           v-model="mode"
           :items="[
             { title: '离线演示', value: 'demo' },
@@ -263,23 +258,22 @@ async function saveSettings() {
           ]"
           label="运行模式"
           aria-label="运行模式"
-        /><v-select
+        /><UiChoice
           v-model="providerGroup"
           :items="workspace.snapshot?.providers.groups ?? []"
           item-title="name"
           item-value="id"
           label="模型组"
           aria-label="模型组"
-        /><v-text-field v-model="actorId" label="模拟用户 ID" /><v-text-field
+        /><UiText v-model="actorId" label="模拟用户 ID" /><UiText
           v-model="actorName"
           label="模拟昵称"
-        /><v-btn to="/settings">完整 Bot 设置</v-btn></v-card-text
-      ><v-card-actions
-        ><v-spacer /><v-btn @click="settings = false">取消</v-btn
-        ><v-btn variant="flat" color="primary" @click="notifications.run(saveSettings)"
-          >保存</v-btn
-        ></v-card-actions
-      ></v-card
-    ></v-dialog
+        /><UiButton to="/settings">完整 Bot 设置</UiButton>
+      </div>
+      <footer class="pi-actions">
+        <span class="pi-spacer" /><UiButton @click="settings = false">取消</UiButton
+        ><UiButton variant="flat" color="primary" @click="notifications.run(saveSettings)">保存</UiButton>
+      </footer></UiCard
+    ></UiDialog
   >
 </template>

@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import UiButton from '@/ui/UiButton.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiDialog from '@/ui/UiDialog.vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { createStickToBottom } from '@ui-sdk/core'
 import type { ChatMessage, Attachment } from '@core/domain/message'
 import MarkdownMessagePart from './message_list_comps/MarkdownMessagePart.vue'
 import { attachmentUrl } from '@/api/chat'
@@ -59,20 +63,22 @@ function scrollToMessage(messageId?: string) {
   const target = listRoot.value?.querySelector('[data-message-id="' + CSS.escape(messageId ?? '') + '"]')
   target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
 }
-watch(
-  () => [props.messages.length, props.preview],
-  async () => {
-    const element = listRoot.value
-    if (!element) {
-      return
-    }
-    const follow = element.scrollHeight - element.scrollTop - element.clientHeight < 150
-    await nextTick()
-    if (follow) {
-      element.scrollTop = element.scrollHeight
-    }
+const unseen = ref(false)
+const follow = createStickToBottom({
+  threshold: 150,
+  onChange(state) {
+    unseen.value = state.unseen
   }
-)
+})
+let disconnect: (() => void) | undefined
+onMounted(() => {
+  if (listRoot.value) {
+    disconnect = follow.connect(listRoot.value)
+  }
+})
+onBeforeUnmount(() => {
+  disconnect?.()
+})
 </script>
 <template>
   <div
@@ -90,23 +96,22 @@ watch(
         class="message-row"
         :class="{ 'from-user': isUserMessage(msg), 'from-bot': !isUserMessage(msg) }"
       >
-        <v-avatar v-if="!isUserMessage(msg)" class="bot-avatar" size="32"
-          ><v-progress-circular
-            v-if="msg.id === 'pi-streaming-preview'"
-            indeterminate
-            size="22"
-            width="2"
-          /><span v-else class="bot-avatar-symbol">✦</span></v-avatar
+        <span v-if="!isUserMessage(msg)" class="pi-avatar bot-avatar"
+          ><span class="pi-spinner" v-if="msg.id === 'pi-streaming-preview'" /><span
+            v-else
+            class="bot-avatar-symbol"
+            >✦</span
+          ></span
         >
         <div class="message-stack">
           <div class="message-bubble" :class="{ user: isUserMessage(msg), bot: !isUserMessage(msg) }">
-            <v-btn
+            <UiButton
               v-if="msg.replyTo"
               variant="text"
               size="small"
               prepend-icon="mdi-reply"
               @click="scrollToMessage(msg.replyTo.messageId)"
-              >引用：{{ msg.replyTo.messageId || msg.replyTo.platformMessageId }}</v-btn
+              >引用：{{ msg.replyTo.messageId || msg.replyTo.platformMessageId }}</UiButton
             >
             <p v-if="msg.recalled" class="text-medium-emphasis">消息已撤回</p>
             <div v-else-if="isUserMessage(msg) || msg.role === 'system'" class="plain-content">
@@ -151,40 +156,40 @@ watch(
                   :src="attachmentUrl(roomId, attachment) + '?view=1'"
                   @error="failed[attachment.url] = true"
                 />
-                <v-btn
+                <UiButton
                   variant="text"
                   :href="attachmentUrl(roomId, attachment)"
                   :download="attachment.name"
                   prepend-icon="mdi-download"
-                  >{{ attachment.name }}</v-btn
+                  >{{ attachment.name }}</UiButton
                 >
-                <v-btn
+                <UiButton
                   v-if="failed[attachment.url] && attachment.mediaId"
                   variant="text"
                   @click="emit('retryMedia', attachment)"
-                  >重新读取媒体</v-btn
+                  >重新读取媒体</UiButton
                 > </template
               ><span v-else>{{ attachment.name }}</span>
             </template>
           </div>
           <div v-if="msg.id !== 'pi-streaming-preview'" class="message-meta">
             <span>{{ msg.actorName }} · {{ new Date(msg.createdAt).toLocaleTimeString() }}</span
-            ><v-chip v-if="msg.deliveryState" size="x-small">{{ msg.deliveryState }}</v-chip>
-            <v-btn
+            ><UiChip v-if="msg.deliveryState" size="x-small">{{ msg.deliveryState }}</UiChip>
+            <UiButton
               icon="mdi-reply"
               size="x-small"
               variant="text"
               aria-label="引用消息"
               @click="emit('reply', msg)"
             />
-            <v-btn
+            <UiButton
               icon="mdi-content-copy"
               size="x-small"
               variant="text"
               aria-label="复制消息"
               @click="copyMessage(msg)"
             /><span v-if="copied === msg.id">已复制</span>
-            <v-btn
+            <UiButton
               v-if="!msg.recalled"
               icon="mdi-delete-outline"
               size="x-small"
@@ -196,21 +201,25 @@ watch(
         </div>
       </div>
     </div>
-    <v-overlay
+    <button v-if="unseen" type="button" class="pi-jump" @click="follow.scrollToBottom()">
+      查看最新消息 ↓
+    </button>
+    <UiDialog
+      fullscreen
+      label="图片预览"
       v-model="imagePreview.visible"
       class="image-preview-overlay"
-      scrim="rgba(0,0,0,0.86)"
       @click="imagePreview.visible = false"
       ><img :src="imagePreview.url" class="preview-image" alt="图片预览" @click.stop
-    /></v-overlay>
+    /></UiDialog>
   </div>
 </template>
 <style scoped>
 .chat-message-list {
-  --chat-border: rgba(var(--v-border-color), 0.16);
-  --chat-muted: rgba(var(--v-theme-on-surface), 0.62);
+  --chat-border: rgba(var(--pi-border), 0.16);
+  --chat-muted: rgba(var(--pi-on-surface), 0.62);
   width: 100%;
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--pi-on-surface));
 }
 
 .chat-message-list.is-dark {
@@ -273,8 +282,8 @@ watch(
   overflow: hidden;
   border: 0;
   border-radius: 8px;
-  background: rgba(var(--v-theme-on-surface), 0.055);
-  color: rgb(var(--v-theme-on-surface));
+  background: rgba(var(--pi-on-surface), 0.055);
+  color: rgb(var(--pi-on-surface));
 }
 
 .sent-image-card {
@@ -302,17 +311,17 @@ watch(
 
 .sent-attachments.images-only .sent-image-card img {
   object-fit: cover;
-  background: rgba(var(--v-theme-on-surface), 0.04);
+  background: rgba(var(--pi-on-surface), 0.04);
 }
 
 .sent-file-card {
   width: 236px;
   padding: 8px 10px;
-  background: rgba(var(--v-theme-on-surface), 0.055);
+  background: rgba(var(--pi-on-surface), 0.055);
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--attachment-color) 14%, transparent),
-    rgba(var(--v-theme-on-surface), 0.055) 62%
+    rgba(var(--pi-on-surface), 0.055) 62%
   );
 }
 
@@ -354,7 +363,7 @@ watch(
 
 .bot-avatar {
   margin-top: 2px;
-  color: rgb(var(--v-theme-primary));
+  color: rgb(var(--pi-primary));
   user-select: none;
 }
 
@@ -381,12 +390,12 @@ watch(
 }
 
 .message-bubble.user {
-  color: var(--v-theme-primaryText);
+  color: rgb(var(--pi-primaryText));
   padding: 12px 18px;
   font-size: 15px;
   max-width: 100%;
   border-radius: 1.5rem;
-  background: rgba(var(--v-theme-primary), 0.12);
+  background: rgba(var(--pi-primary), 0.12);
 }
 
 .message-bubble.bot {
@@ -450,7 +459,7 @@ watch(
   overflow-x: auto;
   border-radius: 8px;
   padding: 10px;
-  background: rgba(var(--v-theme-on-surface), 0.06);
+  background: rgba(var(--pi-on-surface), 0.06);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -461,11 +470,11 @@ watch(
   align-items: center;
   gap: 6px;
   border: 0;
-  border-left: 3px solid rgb(var(--v-theme-primary));
+  border-left: 3px solid rgb(var(--pi-primary));
   border-radius: 6px;
   padding: 7px 9px;
   margin-bottom: 8px;
-  background: rgba(var(--v-theme-primary), 0.08);
+  background: rgba(var(--pi-primary), 0.08);
   color: inherit;
   cursor: pointer;
   text-align: left;
@@ -513,11 +522,11 @@ watch(
   padding: 9px 8px 9px 10px;
   border: 0;
   border-radius: 8px;
-  background: rgba(var(--v-theme-on-surface), 0.055);
+  background: rgba(var(--pi-on-surface), 0.055);
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--attachment-color) 13%, transparent),
-    rgba(var(--v-theme-on-surface), 0.055) 58%
+    rgba(var(--pi-on-surface), 0.055) 58%
   );
 }
 
@@ -552,7 +561,7 @@ watch(
 }
 
 .file-part-action {
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--pi-on-surface));
   opacity: 0.72;
 }
 
@@ -607,7 +616,7 @@ watch(
 }
 
 .message-thread-meta:hover {
-  background: rgba(var(--v-theme-on-surface), 0.06);
+  background: rgba(var(--pi-on-surface), 0.06);
 }
 
 .thread-menu-item {
@@ -697,9 +706,9 @@ watch(
 }
 
 .variant-thread .message-bubble.user {
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
-  background: rgb(var(--v-theme-on-surface));
-  color: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--pi-on-surface), 0.1);
+  background: rgb(var(--pi-on-surface));
+  color: rgb(var(--pi-surface));
 }
 
 .variant-thread .message-bubble.bot {

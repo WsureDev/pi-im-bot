@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import UiButton from '@/ui/UiButton.vue'
+import UiCard from '@/ui/UiCard.vue'
+import UiCheck from '@/ui/fields/UiCheck.vue'
+import UiChip from '@/ui/UiChip.vue'
+import UiChoice from '@/ui/fields/UiChoice.vue'
+import UiTableFrame from '@/ui/table/UiTableFrame.vue'
+import UiText from '@/ui/fields/UiText.vue'
 import { computed, onMounted, ref, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
@@ -151,28 +158,28 @@ onMounted(async () => {
       <h1 class="text-h5 font-weight-bold">编排流程</h1>
       <p class="text-medium-emphasis mt-1">从触发到交付，看清每个节点的职责与插件顺序。</p>
     </div>
-    <v-spacer /><v-select
+    <span class="pi-spacer" /><UiChoice
       :model-value="pluginId"
       :items="scopes"
       label="编辑范围"
       aria-label="编辑范围"
-      hide-details
       class="scope-select"
       @update:model-value="router.push('/orchestration/' + $event)"
     />
   </div>
-  <v-alert v-if="pluginId" type="info" variant="tonal" class="mb-4"
-    >正在查看
+  <div v-if="pluginId" data-tone="info" class="pi-alert mb-4">
+    正在查看
     {{ research.pluginName(pluginId) }}
-    的编排。其他插件仍可查看，仅本插件的注册项可编辑；服务器也会检查归属。</v-alert
-  >
-  <v-alert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</v-alert>
-  <v-card class="mb-5 graph-card">
+    的编排。其他插件仍可查看，仅本插件的注册项可编辑；服务器也会检查归属。
+  </div>
+  <div v-if="error" data-tone="error" class="pi-alert mb-4">{{ error }}</div>
+  <UiCard class="mb-5 graph-card">
     <div class="d-flex align-center flex-wrap ga-2 px-4 py-2 border-b">
-      <v-chip size="small" color="primary">左 → 右</v-chip
-      ><span class="text-body-2">拖动画布 / 滚轮缩放 · 点击节点查看详情</span><v-spacer />
-      <v-btn size="small" variant="tonal" @click="fitView({ padding: 0.08, duration: 300 })">完整流程</v-btn
-      ><v-btn size="small" color="primary" variant="tonal" @click="focus">聚焦所选</v-btn>
+      <UiChip size="small" color="primary">左 → 右</UiChip
+      ><span class="text-body-2">拖动画布 / 滚轮缩放 · 点击节点查看详情</span><span class="pi-spacer" />
+      <UiButton size="small" variant="tonal" @click="fitView({ padding: 0.08, duration: 300 })"
+        >完整流程</UiButton
+      ><UiButton size="small" color="primary" variant="tonal" @click="focus">聚焦所选</UiButton>
     </div>
     <div class="flow-canvas" aria-label="从左到右的插件编排图">
       <VueFlow
@@ -193,29 +200,28 @@ onMounted(async () => {
     <div class="px-4 py-2 text-caption text-medium-emphasis border-t">
       基于真实切入点声明的结构图；注册项为演示样例。蓝色为插件节点，绿色为执行阶段，橙色为新增权限方案。
     </div>
-  </v-card>
-  <v-card v-if="stage" class="mb-4">
-    <v-card-title class="d-flex flex-wrap align-center ga-2"
-      >{{ stage.title }}<v-chip size="small" color="primary">{{ stage.id }}</v-chip
-      ><v-spacer /><v-select
+  </UiCard>
+  <UiCard v-if="stage" class="mb-4">
+    <div class="pi-card-title d-flex flex-wrap align-center ga-2">
+      {{ stage.title }}<UiChip size="small" color="primary">{{ stage.id }}</UiChip
+      ><span class="pi-spacer" /><UiChoice
         :model-value="selected"
         :items="view?.stages"
         item-title="title"
         item-value="id"
         label="查看节点"
         aria-label="查看节点"
-        hide-details
-        density="compact"
         style="max-width: 260px"
         @update:model-value="selected = $event"
-    /></v-card-title>
-    <v-card-text
-      ><p class="mb-2">{{ stage.description }}</p>
+      />
+    </div>
+    <div class="pi-section">
+      <p class="mb-2">{{ stage.description }}</p>
       <div class="text-medium-emphasis">
         输入：{{ stage.reads.join('、') || '无' }}　·　可写：{{ stage.writes.join('、') || '无' }}
-      </div></v-card-text
-    >
-    <v-table v-if="entries.length" class="flow-table">
+      </div>
+    </div>
+    <UiTableFrame v-if="entries.length" class="flow-table">
       <thead>
         <tr>
           <th>生效顺序</th>
@@ -228,7 +234,7 @@ onMounted(async () => {
       <tbody>
         <tr v-for="entry in entries" :key="entry.id" :id="'registration-' + entry.id.replace('/', '-')">
           <td>
-            <v-chip v-if="entry.effective" color="primary" size="small"># {{ entry.rank }}</v-chip
+            <UiChip v-if="entry.effective" color="primary" size="small"># {{ entry.rank }}</UiChip
             ><span v-else class="text-medium-emphasis">未启用</span>
           </td>
           <td>
@@ -236,50 +242,46 @@ onMounted(async () => {
             <div class="text-caption text-medium-emphasis">
               {{ research.pluginName(entry.pluginId) }} · {{ entry.id }}
             </div>
-            <v-chip v-if="!entry.editable" size="x-small" variant="tonal">只读 · 其他插件</v-chip>
+            <UiChip v-if="!entry.editable" size="x-small">只读 · 其他插件</UiChip>
           </td>
           <td>
             <span v-if="entry.after.length">晚于 {{ entry.after.join('、') }}</span
             ><span v-else>无前后依赖</span>
           </td>
           <td>
-            <v-text-field
+            <UiText
               v-model.number="draft[entry.id].priority"
               type="number"
               :aria-label="entry.title + '优先级'"
               :disabled="!entry.editable || busy"
               :min="-100000"
               :max="100000"
-              hide-details
-              density="compact"
               style="min-width: 105px; max-width: 140px"
             />
           </td>
           <td>
-            <v-switch
+            <UiCheck
               v-model="draft[entry.id].enabled"
               :aria-label="entry.title + '启用'"
               :disabled="!entry.editable || busy"
-              hide-details
-              color="primary"
             />
           </td>
         </tr>
       </tbody>
-    </v-table>
-    <v-card-text v-else class="text-medium-emphasis"
-      >这是框架阶段，没有插件注册项。选择蓝色切入点可查看插件优先级。</v-card-text
-    >
-    <v-card-text class="text-caption text-medium-emphasis"
-      >依赖先于数值优先级；同等条件下数值越大越先执行，数值相同时按注册 ID
-      排序。收集/观察节点可并发，顺序表示调度或合并次序；呈现节点选择首个有效结果。</v-card-text
-    >
-  </v-card>
+    </UiTableFrame>
+    <div v-else class="pi-section text-medium-emphasis">
+      这是框架阶段，没有插件注册项。选择蓝色切入点可查看插件优先级。
+    </div>
+    <div class="pi-section text-caption text-medium-emphasis">
+      依赖先于数值优先级；同等条件下数值越大越先执行，数值相同时按注册 ID
+      排序。收集/观察节点可并发，顺序表示调度或合并次序；呈现节点选择首个有效结果。
+    </div>
+  </UiCard>
   <div class="d-flex align-center ga-2">
-    <v-chip v-if="changes.dirty.value" color="warning">草稿尚未保存，图中仍为已生效顺序</v-chip
-    ><v-spacer /><v-btn variant="text" @click="notices.run(refresh)">刷新</v-btn
-    ><v-btn color="primary" variant="flat" :disabled="!changes.dirty.value" :loading="busy" @click="save"
-      >保存编排</v-btn
+    <UiChip v-if="changes.dirty.value" color="warning">草稿尚未保存，图中仍为已生效顺序</UiChip
+    ><span class="pi-spacer" /><UiButton variant="text" @click="notices.run(refresh)">刷新</UiButton
+    ><UiButton color="primary" variant="flat" :disabled="!changes.dirty.value" :loading="busy" @click="save"
+      >保存编排</UiButton
     >
   </div>
 </template>
@@ -290,7 +292,7 @@ onMounted(async () => {
 }
 .flow-canvas {
   height: 440px;
-  background: rgba(var(--v-theme-primary), 0.025);
+  background: rgba(var(--pi-primary), 0.025);
 }
 .flow-table td {
   padding-top: 12px !important;
@@ -303,9 +305,9 @@ onMounted(async () => {
   white-space: nowrap;
 }
 .graph-card :deep(.vue-flow__controls button) {
-  background: rgb(var(--v-theme-surface));
-  color: rgb(var(--v-theme-on-surface));
-  border-color: rgba(var(--v-theme-on-surface), 0.15);
+  background: rgb(var(--pi-surface));
+  color: rgb(var(--pi-on-surface));
+  border-color: rgba(var(--pi-on-surface), 0.15);
 }
 .graph-card :deep(.vue-flow__controls button svg) {
   fill: currentColor;
