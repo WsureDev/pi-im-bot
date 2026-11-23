@@ -91,9 +91,7 @@ const listId = computed(() => {
         @update:visible="emit('click:append-inner')"
       >
         <PasswordInputControl :id="id" v-bind="controlAttrs()" :aria-describedby="descriptionId" />
-        <PasswordInputToggle aria-label="切换凭据可见性"
-          ><UiIcon :icon="appendInnerIcon || 'mdi-eye-outline'"
-        /></PasswordInputToggle>
+        <PasswordInputToggle aria-label="切换凭据可见性" />
       </PasswordInput>
       <Textarea
         v-else-if="multiline"

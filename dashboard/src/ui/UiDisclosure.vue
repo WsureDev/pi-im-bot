@@ -7,9 +7,7 @@ const id = useId()
 <template>
   <AccordionItem :value="id"
     ><AccordionHeader
-      ><AccordionTrigger class="pi-disclosure"
-        >{{ title }}<span aria-hidden="true">⌄</span></AccordionTrigger
-      ></AccordionHeader
+      ><AccordionTrigger class="pi-disclosure">{{ title }}</AccordionTrigger></AccordionHeader
     >
     <AccordionPanel class="pi-section"><slot /></AccordionPanel
   ></AccordionItem>

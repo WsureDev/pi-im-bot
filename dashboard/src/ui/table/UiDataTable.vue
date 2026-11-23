@@ -190,10 +190,11 @@ function toggle(key: string) {
         :page-count="pageCount"
         aria-label="表格分页"
         @page-change="page = $event"
-        ><PaginationPrevious aria-label="上一页">‹</PaginationPrevious
-        ><span>{{ page }} / {{ pageCount }}</span
-        ><PaginationNext aria-label="下一页">›</PaginationNext></Pagination
       >
+        <PaginationPrevious aria-label="上一页" />
+        <span>{{ page }} / {{ pageCount }}</span>
+        <PaginationNext aria-label="下一页" />
+      </Pagination>
     </footer>
   </div>
 </template>

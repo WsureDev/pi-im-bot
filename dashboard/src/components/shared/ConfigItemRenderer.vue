@@ -184,6 +184,7 @@
 
     <UiCheck
       v-else-if="itemMeta?.type === 'bool'"
+      class="config-switch"
       :model-value="inputValue"
       @update:model-value="emitUpdate"
       :disabled="itemMeta?.readonly"
@@ -433,19 +434,7 @@ function getSelectItems(itemMeta) {
 
 .config-checkbox {
   margin-right: 0;
-}
-
-.config-checkbox :deep(.pi-fieldion-control) {
   min-height: 28px;
-}
-
-.config-checkbox :deep(.pi-fieldion-control__wrapper) {
-  width: 18px;
-  height: 18px;
-}
-
-.config-checkbox :deep(.pi-icon) {
-  font-size: 18px;
 }
 
 .config-checkbox :deep(label) {

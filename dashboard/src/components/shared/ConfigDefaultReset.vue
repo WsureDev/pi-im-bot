@@ -35,7 +35,10 @@ function resetToDefault() {
 </script>
 
 <template>
-  <div class="config-default-reset">
+  <div
+    class="config-default-reset"
+    :class="{ 'config-default-reset--switch': enabled && itemMeta?.type === 'bool' && !itemMeta.readonly }"
+  >
     <div class="config-default-reset__field">
       <slot></slot>
     </div>
@@ -70,5 +73,14 @@ function resetToDefault() {
 
 .config-default-reset__button {
   flex: 0 0 auto;
+}
+
+.config-default-reset--switch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2rem;
+}
+
+.config-default-reset--switch .config-default-reset__button {
+  width: 100%;
 }
 </style>

@@ -694,8 +694,11 @@ function hasVisibleItemsAfter(items, currentIndex) {
   max-width: 360px;
   margin-left: auto;
 }
-.config-input :deep(.pi-switch .pi-fieldion-control) {
-  justify-content: flex-end;
+@media (min-width: 600px) {
+  .config-input :deep(.config-switch) {
+    display: flex;
+    justify-content: flex-end;
+  }
 }
 
 .config-field {

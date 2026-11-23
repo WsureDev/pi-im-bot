@@ -14,7 +14,6 @@ import {
   ComboboxChipRemove,
   ComboboxValue
 } from '@ui-sdk/vue/combobox'
-import UiIcon from '../UiIcon.vue'
 defineOptions({ inheritAttrs: false })
 const props = withDefaults(
   defineProps<{
@@ -76,7 +75,6 @@ function clear() {
     <div class="pi-choice-shell">
       <Combobox
         v-if="searchable"
-        class="pi-combo"
         :multiple="multiple"
         :disabled="disabled"
         :value="modelValue"
@@ -86,22 +84,22 @@ function clear() {
         @update:query="emit('update:search', $event)"
         @update:model-value="change"
       >
-        <ComboboxChips v-if="multiple"
-          ><ComboboxValue v-slot="{ state }"
-            ><ComboboxChip
-              v-for="selected in state.value as unknown[]"
-              :key="String(selected)"
-              :value="selected"
-              >{{ labelOf(selected) }}
-              <ComboboxChipRemove aria-label="移除">×</ComboboxChipRemove></ComboboxChip
-            ></ComboboxValue
-          ></ComboboxChips
-        >
-        <div class="pi-input-shell">
-          <ComboboxInput
-            :id="id"
-            :aria-label="String($attrs['aria-label'] || label || '搜索选项')"
-          /><ComboboxTrigger aria-label="展开选项"><UiIcon icon="mdi-chevron-down" /></ComboboxTrigger>
+        <div class="pi-combo">
+          <ComboboxChips v-if="multiple"
+            ><ComboboxValue v-slot="{ state }"
+              ><ComboboxChip
+                v-for="selected in state.value as unknown[]"
+                :key="String(selected)"
+                :value="selected"
+                >{{ labelOf(selected) }}
+                <ComboboxChipRemove aria-label="移除">×</ComboboxChipRemove></ComboboxChip
+              ></ComboboxValue
+            ></ComboboxChips
+          >
+          <div class="pi-input-shell">
+            <ComboboxInput :id="id" :aria-label="String($attrs['aria-label'] || label || '搜索选项')" />
+            <ComboboxTrigger aria-label="展开选项" />
+          </div>
         </div>
         <ComboboxContent class="pi-options"
           ><ComboboxEmpty>没有匹配的选项</ComboboxEmpty
@@ -129,9 +127,9 @@ function clear() {
           :id="id"
           class="pi-select"
           :aria-label="String($attrs['aria-label'] || label || '选择选项')"
-          ><span>{{ labelOf(modelValue) || '请选择' }}</span
-          ><UiIcon icon="mdi-chevron-down"
-        /></SelectTrigger>
+        >
+          <span>{{ labelOf(modelValue) || '请选择' }}</span>
+        </SelectTrigger>
         <SelectContent class="pi-options"
           ><SelectItem
             v-for="option in choices"

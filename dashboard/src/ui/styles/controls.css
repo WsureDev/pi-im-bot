@@ -90,11 +90,26 @@
   align-items: center;
   flex: 1;
   min-width: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+}
+.pi-password input::-ms-reveal {
+  display: none;
 }
 .pi-input-shell button,
 .pi-choice-shell > button {
   flex: none;
   padding: 4px 6px;
+}
+.pi-password [data-slot='password-input-toggle'],
+.pi-combo [data-slot='combobox-trigger'] {
+  margin-inline-start: 0;
+  padding: 0;
+  width: 32px;
+  height: 32px;
 }
 .pi-select {
   width: 100%;
@@ -113,9 +128,13 @@
   gap: 4px;
 }
 .pi-combo,
-.pi-choice-shell > [data-slot='select-root'] {
+.pi-choice-shell > [data-slot='select-trigger'] {
   flex: 1;
   min-width: 0;
+}
+.pi-combo {
+  display: grid;
+  gap: 4px;
 }
 .pi-options,
 .pi-menu-content {
@@ -147,6 +166,7 @@
   font-weight: 650;
 }
 .pi-check {
+  position: relative;
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
@@ -177,18 +197,11 @@
 .pi-switch-thumb {
   width: 14px;
   height: 14px;
-  border-radius: 50%;
-  background: rgb(var(--pi-secondaryText));
-  transition: transform 0.14s ease;
 }
 .pi-switch[aria-checked='true'],
 .pi-checkbox[aria-checked='true'] {
   background: rgb(var(--pi-primary));
   border-color: transparent;
-}
-.pi-switch[aria-checked='true'] .pi-switch-thumb {
-  transform: translateX(13px);
-  background: var(--ui-primary-foreground);
 }
 .pi-checkbox {
   width: 19px;
@@ -254,21 +267,13 @@
   .pi-spinner {
     animation: none;
   }
-  .pi-switch-thumb {
-    transition: none;
-  }
 }
 
-.pi-select[data-slot='select-trigger']::after {
-  display: none;
-}
-.pi-choice-shell > [data-slot='select-trigger'] {
-  flex: 1;
-}
-.pi-choice-shell [data-slot='combobox-chips'] {
+.pi-combo [data-slot='combobox-chips'] {
+  display: flex;
   flex-wrap: wrap;
+  gap: 4px;
 }
-
-.pi-check {
-  position: relative;
+.pi-combo [data-slot='combobox-chips']:empty {
+  display: none;
 }

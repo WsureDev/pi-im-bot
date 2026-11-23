@@ -42,8 +42,9 @@ function change(value: unknown) {
       class="pi-checkbox"
       :aria-label="ariaLabel || label"
       @update:checked="change"
-      ><CheckboxIndicator>✓</CheckboxIndicator></Checkbox
     >
+      <CheckboxIndicator />
+    </Checkbox>
     <Switch
       v-else
       :id="id"
